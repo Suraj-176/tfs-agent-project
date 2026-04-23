@@ -13,7 +13,9 @@ Unlike simple LLM wrappers, the Hub utilizes a **Multi-Agent Orchestration** pat
 ## 🤖 The Agent Roster
 
 ### [Agent 1] TFS Task Agent (The Decomposer)
-*   **Bulk Mode**: Smart parsing of non-standard Excel/CSV templates with heuristic column detection.
+*   **Bulk Mode**: Smart parsing of non-standard Excel/CSV templates with heuristic column detection. 
+    *   *Supported Formats*: Standard tables (Header-based), Dual-header (Resource-grouped), and Heuristic (AI-guessed).
+    *   *Updates*: Simply include a `TaskID` column to update existing items in bulk.
 *   **Create Mode**: Decomposes high-level requirements into 3-5 actionable subtasks with effort estimation.
 *   **Identity Resolution**: Automatically maps names and emails to valid TFS identities.
 

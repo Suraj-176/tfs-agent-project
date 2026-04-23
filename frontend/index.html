@@ -831,31 +831,24 @@
           </div>
 
           <div id="htab-agent1" class="help-content-section guidev2-section" style="display:none;">
-            <h1>Agent 1: Task Creation</h1>
-            <p class="sub">Creates or updates TFS tasks using Excel, OneDrive, or Google Drive input.</p>
+            <h1>Agent 1: TFS Task Agent</h1>
+            <p class="sub">Creates or updates tasks using Excel, OneDrive, or Google Drive input.</p>
             <div class="guidev2-card">
-              <h3>Inputs</h3>
+              <h3>Bulk Excel Format</h3>
               <ul class="guidev2-list">
-                <li>Bulk mode: Create or Update</li>
-                <li>Iteration path</li>
-                <li>Input source file or link and sheet name</li>
+                <li><strong>Reference Template:</strong> See <code>templates/agent1_bulk_template.csv</code> in the repo.</li>
+                <li><strong>Standard Table:</strong> Header row with <code>Date</code>, <code>Task</code>, <code>Assigned To</code>, <code>Hours</code>.</li>
+                <li><strong>Update Mode:</strong> Include a <code>TaskID</code> or <code>BugID</code> column to update existing items.</li>
+                <li><strong>Dual-Header:</strong> Place an <code>Employee Name</code> row above the header row for grouped assignments.</li>
+                <li><strong>Smart Mapping:</strong> Supports flexible names like "Time" for Hours, "Title" for Task, etc.</li>
               </ul>
             </div>
             <div class="guidev2-card">
-              <h3>Step by step</h3>
-              <ol class="guidev2-list">
-                <li>Select Agent 1.</li>
-                <li>Choose Create or Update mode.</li>
-                <li>Select input method and provide file or link.</li>
-                <li>Load and confirm the target sheet.</li>
-                <li>Execute and review summary in output and details tabs.</li>
-              </ol>
-            </div>
-            <div class="guidev2-card">
-              <h3>Output you should see</h3>
+              <h3>Inputs & Setup</h3>
               <ul class="guidev2-list">
-                <li>Creation or update summary in Output tab.</li>
-                <li>Item-level details in Details tab.</li>
+                <li><strong>Bulk Mode:</strong> Create (new items) or Update (existing IDs).</li>
+                <li><strong>Iteration Path:</strong> Required for correct sprint placement.</li>
+                <li><strong>Source:</strong> Local file upload, OneDrive, or Google Drive link.</li>
               </ul>
             </div>
           </div>

@@ -39,8 +39,14 @@ Before running any agent, you **must** configure the two core modules in the hea
 Automates the creation and management of Task work items.
 
 *   **Bulk Mode (Excel/CSV)**:
-    *   Upload an Excel file containing your daily or sprint tasks.
-    *   **Smart Parsing**: Supports "Dual-Header" (Resource name followed by tasks), standard tables, and a "Heuristic" mode that guesses columns if your template is non-standard.
+    *   Upload an Excel or CSV file containing your daily or sprint tasks.
+    *   **Reference Template**: See `templates/agent1_bulk_template.csv` for a perfectly formatted example.
+    *   **Recommended Format (Standard Table)**:
+        *   Create a header row with clear names like: `Date`, `Task`, `Assigned To`, `Hours`, `Status`.
+        *   **Update Mode**: Include a `TaskID` or `BugID` column. If an ID is present, the agent will **update** that existing item instead of creating a new one.
+    *   **Dual-Header Mode**:
+        *   Allows grouping by resource. Place the `Employee Name` or `Email` in a row by itself, followed by a header row (`Date`, `Task`, etc.) and then the task data.
+    *   **Smart Parsing**: The agent automatically maps columns even if names vary (e.g., "Time" vs "Hours", "Title" vs "Task").
     *   **Identity Resolution**: Automatically maps email addresses or names from your Excel to valid TFS identities.
     *   **Duplication Check**: Prevents creating the same task twice by checking the Title, Date, and Assignee.
 *   **Create Mode (Requirement → Tasks)**:
