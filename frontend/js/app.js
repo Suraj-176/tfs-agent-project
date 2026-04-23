@@ -5417,6 +5417,42 @@ async function executeAgent() {
   };
 
   addDebugLog(`Starting execution of ${currentAgent}`);
+  
+  // ==================== GLOBAL UI CLEANUP BEFORE EXECUTION ====================
+  // Reset Global Result Variables
+  parsedTestCases = [];
+  testCaseCount = 0;
+
+  // Reset Result Tabs & Panels to prevent data leakage between agents
+  const elementsToClear = ['output-content', 'details-content', 'logs-content', 'dashboard-content'];
+  elementsToClear.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+
+  // Hide the Dashboard tab by default (it's only for Agent 5)
+  const dashTabBtn = document.getElementById('tab-btn-dashboard');
+  if (dashTabBtn) dashTabBtn.style.display = 'none';
+
+  // Hide the Analysis Chat and Upload sections (they're only for Agent 2)
+  const testcaseAnalysisChatSection = document.getElementById('testcase-analysis-chat-section');
+  if (testcaseAnalysisChatSection) testcaseAnalysisChatSection.style.display = 'none';
+  const testcaseUploadSection = document.getElementById('testcase-upload-section');
+  if (testcaseUploadSection) testcaseUploadSection.style.display = 'none';
+
+  // Reset Stats Bar
+  const statsToReset = { 's-status': '-', 's-items': '-', 's-duration': '-', 'results-meta': '' };
+  Object.keys(statsToReset).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = statsToReset[id];
+  });
+  if (document.getElementById('s-items-bar')) document.getElementById('s-items-bar').style.width = '0%';
+  if (document.getElementById('s-duration-bar')) document.getElementById('s-duration-bar').style.width = '0%';
+
+  // Switch to Output tab by default
+  const outputTabBtn = document.getElementById('tab-btn-output');
+  if (outputTabBtn) setResultsTab('output', outputTabBtn);
+
   showPanel('panel-execution');
   updateStepIndicator(3);
   const executionStartedAt = Date.now();
@@ -6748,7 +6784,7 @@ function newExecution() {
     'Feature': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' }
   };
 
-  // === Agent 4: Dashboard - clear query inputs and file inputs ===
+  // === Agent 5: Dashboard - clear query inputs and file inputs ===
   ['dash-bug-query','dash-retest-query','dash-story-query','dash-other-query'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.value = ''; el.dataset.queryId = ''; }
@@ -6761,6 +6797,12 @@ function newExecution() {
   });
   const dashPrompt = document.getElementById('dash-llm-prompt');
   if (dashPrompt) dashPrompt.value = '';
+
+  // Clear Dashboard Content UI
+  const dashContent = document.getElementById('dashboard-content');
+  if (dashContent) dashContent.innerHTML = '';
+  const dashTabBtn = document.getElementById('tab-btn-dashboard');
+  if (dashTabBtn) dashTabBtn.style.display = 'none';
 
   showPanel('panel-config');
   updateStepIndicator(2);
@@ -7191,58 +7233,50 @@ async function fetchAvailablePlans() {
     // Parse test plan URL to extract collection, project
     let collectionUrl = '';
     let project = '';
-    
+
     try {
       const url = new URL(testPlanUrl);
       const protocol = url.protocol; // http: or https:
       const host = url.host;         // server:port
       const pathParts = url.pathname.split('/').filter(p => p); // split path into parts
-      
-      // Look for 'tfs' in path
+
+      addDebugLog(`📋 URL Parts: [${pathParts.join(', ')}]`);
+
+      // Modern Azure DevOps / TFS format: server:port/tfs/Collection/Project/_testManagement
+      // Or: server:port/tfs/Collection/Project/_testPlans
       let tfsIndex = pathParts.findIndex(p => p.toLowerCase() === 'tfs');
-      let testManagementIndex = pathParts.findIndex(p => p.toLowerCase() === '_testmanagement');
-      let testPlansUrlIndex = pathParts.findIndex(p => p.toLowerCase() === '_testplans');
-      let testPlansIndex = pathParts.findIndex(p => p.toLowerCase() === 'testplans');
-      
-      if (testManagementIndex >= 1) {
-        // Web UI format: /tfs/Collection/Project/_testManagement/...
-        if (tfsIndex >= 0 && testManagementIndex >= 2) {
-          const collection = pathParts[tfsIndex + 1];
-          project = pathParts[testManagementIndex - 1];
-          collectionUrl = `${protocol}//${host}/tfs/${collection}`;
-        }
-      } else if (testPlansUrlIndex >= 1) {
-        // Execute page format: /tfs/Collection/Project/_testPlans/execute?planId=52418
-        if (tfsIndex >= 0 && testPlansUrlIndex >= 2) {
-          const collection = pathParts[tfsIndex + 1];
-          project = pathParts[testPlansUrlIndex - 1];
-          collectionUrl = `${protocol}//${host}/tfs/${collection}`;
-        }
-      } else if (testPlansIndex >= 1) {
-        // API format: /tfs/Collection/Project/TestPlans/[planId]
-        project = pathParts[testPlansIndex - 1]; // Project is right before TestPlans
-        
-        if (tfsIndex >= 0) {
-          const collection = pathParts[tfsIndex + 1];
-          collectionUrl = `${protocol}//${host}/tfs/${collection}`;
-        } else if (testPlansIndex >= 2) {
-          const collection = pathParts[testPlansIndex - 2];
-          collectionUrl = `${protocol}//${host}/tfs/${collection}`;
-        } else {
-          collectionUrl = `${protocol}//${host}/tfs`;
-        }
+
+      if (tfsIndex >= 0 && pathParts.length >= tfsIndex + 3) {
+        // Standard /tfs/Collection/Project structure
+        const collection = pathParts[tfsIndex + 1];
+        project = pathParts[tfsIndex + 2];
+        collectionUrl = `${protocol}//${host}/tfs/${collection}`;
       } else {
-        // Fallback
-        collectionUrl = lastTestCaseExecutionData.tfs_config.base_url || testPlanUrl;
-        if (tfsIndex >= 0 && pathParts.length > tfsIndex + 2) {
-          const collection = pathParts[tfsIndex + 1];
-          project = pathParts[tfsIndex + 2];
-          collectionUrl = `${protocol}//${host}/tfs/${collection}`;
+        // Fallback: look for markers like _testPlans or _testManagement
+        let markers = ['_testplans', '_testmanagement', '_testrun'];
+        let markerIndex = -1;
+        for (let m of markers) {
+           markerIndex = pathParts.findIndex(p => p.toLowerCase() === m);
+           if (markerIndex >= 1) break;
+        }
+
+        if (markerIndex >= 1) {
+          project = pathParts[markerIndex - 1];
+          // Collection is everything before project
+          if (tfsIndex >= 0 && markerIndex > tfsIndex + 1) {
+              const collection = pathParts[tfsIndex + 1];
+              collectionUrl = `${protocol}//${host}/tfs/${collection}`;
+          } else {
+              collectionUrl = `${protocol}//${host}/tfs`;
+          }
+        } else {
+          // Last resort: assume project is the 3rd part or last part
+          project = pathParts[2] || pathParts[pathParts.length - 1];
+          collectionUrl = lastTestCaseExecutionData.tfs_config.base_url || `${protocol}//${host}/tfs`;
         }
       }
-      
-      addDebugLog(`✅ Extraction - Collection: ${collectionUrl}, Project: ${project}`);
-      
+
+      addDebugLog(`✅ Extraction Result - Collection: ${collectionUrl}, Project: ${project}`);      
       // Store for later use in upload function
       extractedTfsCollectionUrl = collectionUrl;
       extractedTfsProject = project;
