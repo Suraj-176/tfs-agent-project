@@ -73,6 +73,16 @@ pip install -r requirements.txt
 
 ---
 
+## 🚀 Future Roadmap & Extensibility
+
+While the platform is currently optimized for **TFS / Azure DevOps**, it has been architected with **Provider Agility** in mind. The modular agent design allows for easy extension to other ALM and bug-tracking tools:
+
+*   **Jira Integration**: Planned support for Jira Software Cloud/Data Center via the Jira REST API.
+*   **Bugzilla & GitHub Issues**: The core AI logic for Agent 4 (Bug Reporting) can be mapped to any issue-tracking system.
+*   **ALM Agnostic Core**: The underlying "Squad" of agents (Decomposer, Designer, Strategist) can work with any backend once a dedicated "Tool Connector" is added.
+
+---
+
 ## 🔒 Security & Privacy
 
 *   **Session-Based Config**: API keys and credentials are stored in your browser's local session storage. They are never saved to a database and are wiped when the tab is closed.
