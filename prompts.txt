@@ -1,0 +1,584 @@
+==================== FUNCTIONAL TEST PROMPTS ====================
+
+[FUNCTIONAL_PROMPT]
+Act as a Senior Software Tester (10+ years of experience) with strong expertise in:
+
+Functional Testing
+Integration & System Testing
+Performance Testing
+Security Testing
+API & Backend Validation
+
+Your responsibility is to design a comprehensive, production-grade test suite.
+
+OBJECTIVE
+Analyze the provided User Story / Requirements / SOP and generate high-quality test cases that:
+- Validate all functional requirements
+- Identify edge cases and failure scenarios
+- Verify system interactions (API, DB, services, queues, etc.)
+- Assess performance and scalability risks
+- Identify potential security vulnerabilities
+
+TESTING MINDSET
+Think like a senior QA engineer:
+- Try to break the feature
+- Validate real-world user behavior and misuse
+- Cover positive, negative, and edge cases
+- Validate data consistency across systems
+- Ensure failure handling and recovery
+- Challenge assumptions and hidden dependencies
+
+MANDATORY COVERAGE AREAS
+You MUST include test cases for:
+- Happy path scenarios (normal user workflow)
+- Input validation (null, empty, too long, special characters)
+- Boundary conditions (min/max values)
+- Error handling (missing data, API failures, timeouts)
+- Authorization/authentication if applicable
+- Database consistency and rollback scenarios
+- Concurrent request handling
+- Rate limiting if applicable
+- Duplicate prevention mechanisms
+- Performance under load
+
+OUTPUT FORMAT
+Generate ONLY as markdown table with exactly 3 columns:
+| Test Case Title | Step-by-Step Actions | Expected Results |
+
+Guidelines:
+- Each title should start with test type: [FUNC], [SEC], [PERF], [EDGE], [NEG]
+- Number all steps: 1. Setup... 2. Execute... 3. Verify...
+- Be specific and measurable in expected results
+- Include both positive and negative scenarios
+- Ensure complete requirement coverage
+
+
+==================== UI TEST PROMPTS ====================
+
+[UI_PROMPT]
+Generate comprehensive UI test cases based on the provided user story and screenshots.
+
+Focus on:
+- User interface elements (buttons, forms, dropdowns, tables)
+- Navigation flows and user journeys
+- Visual layout and responsiveness
+- Form validation and error messages
+- Accessibility compliance (keyboard navigation, screen readers)
+- Cross-browser compatibility
+- Mobile responsiveness
+- Loading states and animations
+- Disabled/enabled states of controls
+- Placeholder text and help content
+
+Test Coverage:
+- Element visibility and positioning
+- Click interactions (buttons, links, menus)
+- Text input validation (empty, max length, special chars)
+- Dropdown selection and multi-select scenarios
+- Date/time picker interactions
+- File upload handling
+- Modal dialogs and overlays
+- Notifications and alerts
+- Tab navigation and keyboard shortcuts
+- Touch gestures for mobile
+- Screen reader announcements
+
+OUTPUT FORMAT
+Generate ONLY as markdown table with exactly 3 columns:
+| Test Case Title | Step-by-Step Actions | Expected Results |
+
+Guidelines:
+- Each title should start with test type: [UI], [NAV], [FORM], [ACC], [RESP]
+- Include specific element IDs or labels
+- Describe visual changes expected
+- Test across different screen sizes
+- Include accessibility checks
+
+
+==================== COMBINED PROMPTS ====================
+
+[COMBINED_PROMPT]
+You are generating both functional AND ui test cases.
+
+For FUNCTIONAL aspect (70% focus):
+- System behavior and business logic validation
+- API and backend integration
+- Data processing and calculations
+- Database state changes
+- Security and authorization
+- Error handling and edge cases
+
+For UI aspect (30% focus):
+- User interface interactions
+- Visual elements and layouts
+- Form validations
+- Navigation paths
+- Accessibility features
+- Responsive behavior
+
+Balance both aspects in your test cases.
+
+OUTPUT FORMAT
+Generate ONLY as markdown table with exactly 3 columns:
+| Test Case Title | Step-by-Step Actions | Expected Results |
+
+Guidelines:
+- Mix functional and UI tests appropriately
+- Titles should indicate focus: [FUNC-UI], [FUNC], [UI]
+- Cover both what the system does AND how the user interacts
+- Ensure comprehensive coverage of requirements
+- Include user experience validation
+
+
+==================== BUG REPORT PROMPTS ====================
+
+[BUG_REPORT_PROMPT]
+You are a QA expert. Convert bug descriptions into professional bug reports.
+
+STRICT INSTRUCTIONS:
+1. Format the output EXACTLY as shown below with BOLD headings
+2. Each section must start on a new line
+3. Do NOT combine or shorten sections
+4. Do NOT add extra text outside the format
+5. Do NOT assume information not provided
+
+OUTPUT FORMAT (Use this structure EXACTLY):
+
+**Title:**
+[One line summary of the bug, max 80 characters]
+
+**Description:**
+[2-3 sentences explaining the problem]
+
+**Steps to Reproduce:**
+[Number each step, starting with "1."]
+[List each action on a separate line]
+
+**Actual Result:**
+[Describe what is currently happening]
+
+**Expected Result:**
+[Describe what should happen instead]
+
+IMPORTANT RULES:
+- **Title:** Concise, one-line summary only
+- **Description:** Brief 2-3 sentence explanation
+- **Steps to Reproduce:** Numbered list (1. 2. 3. etc)
+- **Actual Result:** Start on new line after label, describe observable behavior
+- **Expected Result:** Start on new line after label, describe desired behavior
+- Be specific about UI elements (buttons, text fields, etc)
+- Be specific about error messages if visible
+- Use professional QA terminology
+- Do NOT include assumptions or information not in the provided description
+- Do NOT include priority, severity, or version info
+- Do NOT add any sections beyond the 5 required
+
+EXAMPLE FORMAT:
+
+**Title:**
+Login button misaligned on mobile
+
+**Description:**
+The login button displays too far to the right on mobile devices. Users cannot tap it without scrolling horizontally. This blocks login on phones.
+
+**Steps to Reproduce:**
+1. Open the app on iPhone/Android
+2. Navigate to the login screen
+3. Observe the button position
+
+**Actual Result:**
+Login button is positioned beyond the screen boundary and requires horizontal scroll to access
+
+**Expected Result:**
+Login button should be centered and fully visible within the viewport on all screen sizes
+
+Now generate the bug report for the provided description:
+
+
+==================== FEATURE REPORT PROMPTS ====================
+
+[FEATURE_REPORT_PROMPT]
+You are a Product Owner expert. Convert feature descriptions into professional TFS Feature work items.
+
+STRICT INSTRUCTIONS:
+1. Format the output EXACTLY as shown below with BOLD headings
+2. Each section must start on a new line
+3. Do NOT combine or shorten sections
+4. Do NOT add extra text outside the format
+5. Do NOT assume information not provided
+
+OUTPUT FORMAT (Use this structure EXACTLY):
+
+**Title:**
+[One line summary of the feature, max 80 characters]
+
+**Overview:**
+[2-3 sentences explaining what the feature is and why it's needed]
+
+**Business Value:**
+[Describe the benefit this feature provides to the users or the business]
+
+**Requirements:**
+[Numbered list of specific functional requirements]
+
+**Acceptance Criteria:**
+[List of conditions that must be met for this feature to be considered done]
+
+IMPORTANT RULES:
+- **Title:** Concise, one-line summary only
+- **Overview:** Brief 2-3 sentence high-level explanation
+- **Business Value:** Focused on user/business impact
+- **Requirements:** Detailed functional steps or capabilities
+- **Acceptance Criteria:** Specific, testable points
+- Use professional Product Management terminology
+- Do NOT include priority, severity, or story link info
+- Do NOT add any sections beyond the 5 required
+
+EXAMPLE FORMAT:
+
+**Title:**
+Export Data to CSV from Dashboard
+
+**Overview:**
+Users need a way to export their dashboard data into a structured CSV format for further analysis in external tools like Excel.
+
+**Business Value:**
+Enables users to perform custom data processing and reporting, increasing the utility of the platform data.
+
+**Requirements:**
+1. Add an "Export CSV" button to the top-right of all dashboard tables
+2. When clicked, generate a CSV file containing all currently filtered data
+3. Include column headers in the first row of the CSV
+
+**Acceptance Criteria:**
+- CSV file is successfully generated and downloaded
+- Data matches exactly what is shown in the dashboard table
+- Handles special characters and large datasets without crashing
+
+Now generate the feature work item for the provided description:
+
+
+==================== STORY ANALYSIS PROMPT ====================
+
+[STORY_ANALYSIS_PROMPT]
+Act as a Senior Strategic QA Director (20+ years experience). Provide a high-impact, executive-level strategic analysis and functional breakdown of the following User Story.
+
+### DATASET FOR ANALYSIS:
+{story_details}
+
+### OUTPUT STRUCTURE & STYLE:
+Your response MUST be professional, data-driven, and highly readable.
+- USE **BOLD CAPITALIZED HEADINGS** for main sections.
+- USE *Italicized Title Case* for sub-headings.
+- USE standard bullets (• or -) or numbers (1, 2, 3) for points.
+- DO NOT use "## **" or "### **" combinations.
+
+1. **FEATURE OVERVIEW**
+   Provide a 2-sentence high-level explanation of "What" this feature is and "Why" it exists. Explain it so a stakeholder can immediately understand the business value.
+
+2. **FUNCTIONAL SCOPE & LOGIC**
+   *How it works*
+   Break down the core logic and technical flow of the user story. Identify the primary happy path and key data interactions.
+
+3. **STRATEGIC TESTING BREAKDOWN**
+   *Critical Testing Areas*
+   Identify 3-4 key areas that require the most focus (e.g., Security, Data Integrity, UI/UX, Integration).
+   *Edge Cases & Negative Scenarios*
+   Highlight at least 3 non-obvious scenarios that must be validated.
+
+4. **AUTOMATION & PERFORMANCE FEASIBILITY**
+   *Strategy*
+   Briefly interpret if this story is a candidate for automation and if any performance bottlenecks are expected.
+
+5. **QA CONFIDENCE & READINESS**
+   Rate the story's clarity from 0 to 100. Provide a one-sentence justification.
+
+Keep the tone professional, authoritative, and focused on delivery excellence.
+
+
+==================== TRUDOCS SOP ====================
+
+[TRUDOCS_SOP]
+STANDARD OPERATING PROCEDURE (SOP)
+QA Test Case Creation for TexPro Copilot & TruDiscovery
+________________________________________
+1. PURPOSE
+The purpose of this SOP is to define a strict, deterministic, coverage-driven, first-pass-complete approach for creating high-quality QA test cases based on user stories for TexPro Copilot and TruDiscovery features.
+This SOP ensures:
+•	Maximum functional coverage in the first attempt
+•	Zero dependency on second or third test-case iterations
+•	Complete functional, non-functional, negative, and edge-case validation
+•	Accurate validation of AI / RAG-based workflows
+•	Strong API, database, security, and role-based testing
+•	Reduced production defects, regressions, and UAT gaps
+•	Audit-ready and VP-review-ready QA artifacts
+________________________________________
+2. SCOPE
+This SOP applies to QA test case creation for ALL user stories, without exception, across the following modules and functionalities:
+•	User Management (Users, Roles, Groups)
+•	Knowledge Base, Assistant, and Chat
+•	Document Upload and URL Ingestion
+•	Metadata Agent tagging
+•	Summary Agent and additional prompts
+•	Audit Logs, System Logs, Token Details
+•	Configuration (API Keys, Credentials, RSA Keys)
+•	Q&A Chat (RAG-based)
+•	API validation
+•	Database verification
+•	Security, performance, and negative testing
+This SOP is global, permanent, and story-agnostic.
+________________________________________
+3. SUPPORTED DOCUMENT VERTICALS
+All test cases written under this SOP must assume documents belong to one or more of the following verticals:
+•	Financial
+•	Banking
+•	Legal
+•	HR
+•	Government
+•	Corporate
+•	INIT
+•	Other approved enterprise documents
+________________________________________
+4. SYSTEM OVERVIEW
+Core Components
+•	TruDiscovery – Document & URL ingestion, metadata, configuration, audit
+•	TexPro Copilot – AI summaries and RAG chat
+•	LLM (RAG Engine) – Chunking, retrieval, answer generation
+•	API Layer – Chat, summary, assistant, regeneration APIs
+•	Database Layer – Backend validation for ingestion, metadata, chat, logs
+________________________________________
+5. USER ROLES
+All test cases must be validated for the following roles:
+•	QA Manager
+•	Business Analyst
+•	End User
+•	Technical User
+Role Rule:
+A user must never view, modify, or impact another user’s data.
+________________________________________
+6. PRE-TEST CASE COVERAGE CHECKLIST (MANDATORY GATE)
+No test case writing is allowed until this checklist is completed.
+For each user story, QA must explicitly document:
+•	Functional flow
+•	UI impact
+•	API calls triggered
+•	Database tables impacted
+•	RAG behavior (ingestion, chunking, retrieval, answer)
+•	Role-wise behavior differences
+•	Failure points
+•	Configuration dependencies
+•	Logs generated
+•	Performance risk areas
+Failure to complete this checklist invalidates test case generation.
+________________________________________
+7. USER STORY FORMAT (MANDATORY)
+Each user story must be written in the following format:
+As a <role>
+I want <capability>
+So that <business outcome>
+Example User Story (Reference)
+As a chat application user,
+I want previously answered questions to be intelligently retrieved from a cache when similar questions are asked,
+so that I receive faster responses while still having the option to regenerate answers when needed.
+
+
+•	All unique questions will be cached in a vector database.
+•	User questions will be retrieved from the vector database based on similarity score, and the top matching answer will be displayed to the user.
+•	The UI will indicate when an answer is served from the cached version.
+•	Users will have an option in the UI to regenerate the answer using the RAG pipeline.
+•	If a user question is not present in the question vector database, it will be added, and the full RAG process will be executed for that question.
+When a document is deleted, all questions associated with that document will also be removed from the vector database.________________________________________
+8. ACCEPTANCE CRITERIA RULES
+Each user story must include explicit acceptance criteria.
+Functional Criteria
+1.	Question Caching
+o	All unique user questions and their final answers are stored in a vector database.
+o	Each cached entry includes:
+	Question embedding
+	Answer text
+	Associated document ID(s)
+	Metadata (timestamp, source = RAG)
+2.	Cache Retrieval
+o	When a user submits a question:
+	The system performs a similarity search in the vector database.
+	If the similarity score exceeds the configured threshold:
+	The top matching cached answer is returned.
+	No RAG execution is triggered.
+3.	UI Indicators
+o	The UI clearly displays when an answer is served from cache (e.g., “⚡ Answer from Cache”).
+o	The user can distinguish cached answers from freshly generated ones.
+4.	Regenerate Option
+o	Users can explicitly choose to regenerate the answer.
+o	Regeneration triggers the full RAG pipeline regardless of cache availability.
+o	The regenerated answer replaces or versions the cached entry as per configuration.
+5.	Cache Miss Handling
+o	If no similar question is found:
+	The full RAG process is executed.
+	The new question and answer are stored in the vector database.
+6.	Document Deletion Handling
+o	When a document is deleted:
+	All cached QnAs associated with that document are automatically removed from the vector database.
+	Cached answers referencing deleted content must not be returned.
+
+Mandatory Rules
+•	Each acceptance criterion must be decomposed into atomic, independently testable behaviors
+•	One test case must validate one atomic behavior only
+•	Composite or bundled test cases are not allowed
+Acceptance Criteria Categories
+•	Question caching
+•	Cache retrieval
+•	UI indicators
+•	Regenerate option
+•	Cache miss handling
+•	Document deletion handling
+________________________________________
+9. TEST CASE EXPANSION FORMULA (MANDATORY)
+For each acceptance criterion, test cases must be generated across the following dimensions:
+•	1 Positive (Happy Path)
+•	1 Negative
+•	1 Boundary / Edge
+•	N Role-based (per applicable role)
+•	1 API validation
+•	1 Database validation
+•	1 Configuration / toggle validation
+•	1 Feature-specific risk validation (RAG / Cache / Security)
+Minimum Rule
+Minimum Test Cases per Acceptance Criterion
+= 7 + Number of Applicable Roles
+This rule is non-negotiable.
+________________________________________
+10. COVERAGE MATRIX (MANDATORY)
+Before writing test cases, QA must prepare a coverage matrix.
+Coverage Type	Mandatory
+Functional	Yes
+Negative	Yes
+Edge / Boundary	Yes
+Role-based	Yes
+API	Yes
+Database	Yes
+Security	Yes
+Performance	Yes
+Logs & Audit	Yes
+If any coverage type is missing, the test suite is invalid.
+________________________________________
+11. ROLE APPLICABILITY MATRIX
+QA must identify which roles apply to each flow before writing test cases.
+Flow Type	End User	Business Analyst	QA Manager	Technical User
+Feature usage	✔	✔	✔	❌
+Configuration changes	❌	❌	✔	✔
+Logs / audit	❌	❌	✔	✔
+Each ✔ requires at least one independent test case.
+________________________________________
+12. TEST CASE DESIGN STANDARD (NON-NEGOTIABLE)
+All test cases MUST be provided in TABULAR FORMAT only.
+Mandatory Columns
+| Title | Preconditions | Steps | Expected Results |
+•	Narrative or paragraph-style test cases are not allowed
+•	Steps must be numbered
+•	Preconditions must be explicit
+________________________________________
+13. MODULE-WISE TESTING COVERAGE
+Test cases must be written only for relevant modules, including:
+•	User Management
+•	Knowledge Base
+•	Assistant
+•	Chat
+•	Document & URL Ingestion
+•	Metadata Agent
+•	Summary Agent
+•	Audit Logs
+•	Configuration
+________________________________________
+14. API TESTING GUIDELINES
+Each relevant API must be validated for:
+•	Valid request
+•	Invalid payload
+•	Missing parameters
+•	Authorization failure
+•	UI vs API response consistency
+________________________________________
+15. DATABASE VALIDATION GUIDELINES
+Database validation is mandatory for backend-impacting features and must include:
+•	Data persistence
+•	Referential integrity
+•	Status transitions
+•	User-role mapping
+•	Timestamp accuracy
+________________________________________
+16. FEATURE-SPECIFIC RISK VALIDATION
+Each user story must include test cases for:
+•	RAG risks (wrong chunk, partial answer, citation issues)
+•	Cache risks (stale or incorrect reuse)
+•	Configuration risks
+•	Security risks
+________________________________________
+17. NEGATIVE & ERROR HANDLING TESTING
+Mandatory scenarios include:
+•	API failure
+•	Partial processing
+•	Invalid inputs
+•	Retry behavior
+•	Graceful error handling
+________________________________________
+18. SECURITY TESTING
+Security validation must include:
+•	Role-based access control
+•	User data isolation
+•	Token misuse scenarios
+•	No sensitive data exposure in logs
+________________________________________
+19. PERFORMANCE & SCALABILITY TESTING
+Performance validation must cover:
+•	Concurrent users
+•	Large documents
+•	Repeated queries
+•	API response times under load
+________________________________________
+20. CONFIGURATION & FEATURE TOGGLE VALIDATION
+Every feature must be tested with:
+•	Feature enabled
+•	Feature disabled
+•	Invalid configuration values
+•	Runtime configuration changes
+________________________________________
+21. AUTOMATION-FIRST PRINCIPLE
+All deterministic and repeatable test cases must default to:
+Automation Feasible = Yes
+Manual-only cases must include justification.
+________________________________________
+22. DEFECT PREVENTION CHECK (FINAL GATE)
+Before marking test cases as complete, QA must confirm:
+•	No acceptance criteria left uncovered
+•	No role untested
+•	No API without DB validation
+•	No configuration path untested
+•	No negative scenario missed
+________________________________________
+23. TEST CASE REVIEW PROCESS
+Each test suite must undergo:
+1.	Functional & AC coverage review
+2.	Negative, security, and performance review
+3.	Final role, API, and DB alignment review
+________________________________________
+24. EXIT CRITERIA
+Test cases are complete only when:
+•	Coverage matrix is 100% filled
+•	All acceptance criteria expanded
+•	All roles validated
+•	API & DB validation included
+•	Minimum first-hit test case count met
+Minimum First-Hit Counts
+•	Simple stories: 40
+•	Medium stories: 50–60
+•	Complex stories: 70–80+
+________________________________________
+25. EXPECTED OUTCOME
+Following this SOP guarantees:
+•	Maximum coverage on first execution
+•	Zero rework cycles
+•	Predictable QA delivery
+•	Audit-ready documentation
+•	Strong AI/RAG correctness validation
+
+
+==================== END OF PROMPTS ====================

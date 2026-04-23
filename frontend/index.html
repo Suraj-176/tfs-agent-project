@@ -1,0 +1,991 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TFS Agent Hub — Multi-Agent Automation Platform</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-logo" style="color:#0d9488; display:flex; align-items:center;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+    </div>
+    <div class="brand-text" style="flex-direction:row; align-items:center; gap:8px;">
+      <span class="brand-name" style="font-weight:800; white-space:nowrap;">TFS Agent Hub</span>
+      <span style="color:var(--border); font-weight:300;">|</span>
+      <span class="brand-tag" style="font-weight:700; white-space:nowrap;">Multi-Agent Automation Platform</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="llm-indicator" id="home-btn" title="Go to Home" onclick="goHome()" style="cursor:pointer;">
+      <span style="font-size:var(--fs-base)">🏠</span>
+      <span id="home-label">Home</span>
+    </div>
+    <div class="llm-indicator" id="tfs-indicator-btn" title="Configure TFS Connection" onclick="openTFSModal()" style="cursor:pointer;">
+      <span class="llm-dot" id="tfs-dot" style="background:#ef4444;"></span>
+      <span id="tfs-label">TFS Server</span>
+      <span style="opacity:0.5;font-size:var(--fs-xs)">⚙</span>
+    </div>
+    <div class="llm-indicator" id="llm-indicator-btn" title="Configure AI Provider" onclick="openLLMModal()" style="cursor:pointer;">
+      <span class="llm-dot" id="llm-dot" style="background:#ef4444;"></span>
+      <span id="llm-label">Azure OpenAI</span>
+      <span style="opacity:0.5;font-size:var(--fs-xs)">⚙</span>
+    </div>
+    <div class="llm-indicator" id="guide-btn" title="User Guide & Help" onclick="openGuideModal()" style="cursor:pointer; background: #f0fdf4; border-color: #86efac;">
+      <span style="font-size:var(--fs-base)">📖</span>
+      <span style="color:#166534; font-weight:600;">User Guide</span>
+    </div>
+    <div class="llm-indicator" id="health-btn" title="System Health" onclick="checkHealth()" style="cursor:pointer;">
+      <span style="font-size:var(--fs-base)" id="health-emoji">❌</span>
+      <span id="health-status">Offline</span>
+    </div>
+  </div>
+</header>
+
+<!-- LLM Config Modal - Enhanced -->
+<div class="modal-overlay" id="llm-modal" onclick="closeLLMIfOutside(event)" style="display:none;">
+  <div class="modal-box llm-modal-box" style="max-width: 560px;">
+    <div class="modal-header llm-modal-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="modal-title"><span style="font-size:16px">⚙️</span> AI Provider Configuration</div>
+        <div class="modal-sub">Configure your preferred AI provider. Your API key is stored securely in your browser and never shared.</div>
+      </div>
+      <button onclick="closeLLMModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;" onmouseover="this.style.color='var(--ink)'" onmouseout="this.style.color='var(--muted)'">✕</button>
+    </div>
+
+    <div class="modal-body llm-modal-body">
+      <!-- Provider Selection Section -->
+      <div class="llm-section" style="margin-bottom: 16px;">
+        <div class="llm-step">Step 1: Choose Provider</div>
+        
+        <div class="config-row" style="margin-bottom:0;">
+          <label for="llm-provider-select">Provider</label>
+          <select class="config-input" id="llm-provider-select" onchange="selectProvider(this.value)">
+            <option value="azure">Azure OpenAI (Enterprise)</option>
+            <option value="openai">OpenAI (Direct API)</option>
+            <option value="claude">Claude (Advanced)</option>
+            <option value="gemini">Google Gemini (Multimodal)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="llm-divider"></div>
+
+      <!-- Configuration Fields Section -->
+      <div class="llm-section" style="margin-bottom: 14px;">
+        <div class="llm-step">Step 2: Enter Credentials</div>
+
+        <!-- API Key Row -->
+        <div class="config-row">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <label for="llm-api-key">API Key</label>
+            <span class="config-tooltip" title="Your API key for authentication. Never shared." style="cursor: help; font-size: 12px; color: var(--muted);">ℹ️</span>
+          </div>
+          <div style="position: relative;">
+            <input 
+              class="config-input" 
+              id="llm-api-key" 
+              type="password" 
+              placeholder="sk-... or paste your API key" 
+              oninput="onKeyInput()"
+              style="padding-right: 40px;"
+            >
+            <button 
+              type="button" 
+              onclick="toggleAPIKeyVisibility()"
+              style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--muted); font-size: 18px; padding: 0;"
+              id="api-key-toggle"
+              title="Toggle visibility"
+            >👁️</button>
+          </div>
+        </div>
+
+        <!-- Azure-only fields -->
+        <div id="azure-fields" style="display:none;">
+          <div class="llm-azure-note">Required for Azure OpenAI</div>
+          
+          <div class="config-row">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label for="azure-endpoint"><span style="color: #ef4444;">*</span> Azure Endpoint</label>
+              <span class="config-tooltip" title="Your Azure OpenAI resource URL: https://YOUR-RESOURCE.openai.azure.com" style="cursor: help; font-size: 12px; color: var(--muted);">ℹ️</span>
+            </div>
+            <input class="config-input" id="azure-endpoint" type="text" placeholder="https://YOUR-RESOURCE.openai.azure.com" required />
+          </div>
+          <div class="config-row">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label for="azure-deployment"><span style="color: #ef4444;">*</span> Deployment Name</label>
+              <span class="config-tooltip" title="The deployment name you created in Azure Portal (e.g., gpt-4o, gpt-35-turbo)" style="cursor: help; font-size: 12px; color: var(--muted);">ℹ️</span>
+            </div>
+            <input class="config-input" id="azure-deployment" type="text" placeholder="e.g., gpt-4o, gpt-35-turbo, my-deployment" required />
+          </div>
+          <div class="config-row">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label for="azure-api-version"><span style="color: #ef4444;">*</span> API Version</label>
+              <span class="config-tooltip" title="Azure OpenAI API version like 2024-02-15-preview or 2024-05-01-preview" style="cursor: help; font-size: 12px; color: var(--muted);">ℹ️</span>
+            </div>
+            <input class="config-input" id="azure-api-version" type="text" placeholder="e.g., 2024-02-15-preview" required />
+          </div>
+        </div>
+
+        <!-- Model Override -->
+        <div class="config-row">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <label for="llm-model-override">Model Override</label>
+            <span style="font-size: var(--fs-xs); color: var(--muted); font-weight: var(--fw-normal);">(optional)</span>
+            <span class="config-tooltip" title="Leave blank to use default model for provider" style="cursor: help; font-size: 12px; color: var(--muted);">ℹ️</span>
+          </div>
+          <input class="config-input" id="llm-model-override" type="text" placeholder="Leave blank for default" />
+        </div>
+
+        <!-- Security Note -->
+        <div class="llm-security-note" style="margin-top: 16px; display: flex; gap: 10px;">
+          <span style="font-size: 16px; flex-shrink: 0;">🔒</span>
+          <div style="font-size: var(--fs-sm); color: #166534; line-height: 1.5;">Your API key is stored locally in your browser session only and never transmitted to our servers.</div>
+        </div>
+      </div>
+
+      <!-- Status Message -->
+      <div class="config-status" id="config-status" style="min-height: 24px; font-size: var(--fs-sm); margin-top: 16px; padding: 8px 12px; border-radius: 6px; display: none;"></div>
+    </div>
+
+    <!-- Footer Bar -->
+    <div class="llm-footer" style="padding: 12px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: nowrap; background: var(--bg); overflow-x: auto;">
+      <button 
+        onclick="clearLLMConfig();"
+        style="background: none; border: 1px solid var(--border); color: var(--fail); font-size: var(--fs-xs); letter-spacing: 0.5px; cursor: pointer; padding: 8px 11px; border-radius: 6px; font-weight: var(--fw-semibold); transition: all 0.2s; text-transform: uppercase; white-space: nowrap; flex-shrink: 0;"
+        onmouseover="this.style.background='var(--border)'"
+        onmouseout="this.style.background='none'"
+      >🗑️ Clear</button>
+      
+      <button 
+        class="btn-secondary" 
+        onclick="testLLMConnection()"
+        style="display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; padding: 8px 11px; font-size: 0.9rem;"
+      >
+        <span>🧪</span> Test
+      </button>
+      <button 
+        class="btn-secondary" 
+        onclick="closeLLMModal()"
+        style="white-space: nowrap; flex-shrink: 0; padding: 8px 11px; font-size: 0.9rem;"
+      >Cancel</button>
+      <button 
+        class="btn-primary" 
+        onclick="saveLLMConfig()"
+        style="display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; padding: 8px 11px; font-size: 0.9rem;"
+        id="save-btn"
+      >
+        <span id="save-btn-icon">💾</span>
+        <span id="save-btn-text">Save</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Step indicator -->
+<div class="steps-bar">
+  <div class="step-item active" id="si-1"><div class="step-num">1</div> Select Agent</div>
+  <div class="step-item" id="si-2"><div class="step-num">2</div> Configure</div>
+  <div class="step-item" id="si-3"><div class="step-num">3</div> Execute</div>
+  <div class="step-item" id="si-4"><div class="step-num">4</div> Results</div>
+</div>
+
+<!-- TFS Connection Modal -->
+<div class="modal-overlay" id="tfs-modal" onclick="closeTFSIfOutside(event)" style="display:none;">
+  <div class="modal-box" style="max-width: 420px;">
+    <div class="modal-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="modal-title"><span style="font-size:16px">🔗</span> TFS Server Connection</div>
+        <div class="modal-sub">Connect to your TFS server to enable agent operations.</div>
+      </div>
+      <button onclick="closeTFSModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;" onmouseover="this.style.color='var(--ink)'" onmouseout="this.style.color='var(--muted)'">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Base URL -->
+      <div class="config-row">
+        <label for="tfs-base-url" style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--ink);margin-bottom:8px;display:block;">Base URL</label>
+        <input 
+          type="text" 
+          id="tfs-base-url" 
+          class="config-input" 
+          placeholder="http://tfs-server:8080/tfs/GenAI"
+        >
+      </div>
+
+      <!-- Task URL -->
+      <div class="config-row">
+        <label for="tfs-task-url" style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--ink);margin-bottom:8px;display:block;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            Task URL
+            <span style="font-size:var(--fs-xs);color:#dc2626;font-weight:var(--fw-normal);">*</span>
+          </div>
+        </label>
+        <input 
+          type="text" 
+          id="tfs-task-url" 
+          class="config-input" 
+          placeholder="http://tfs-server:8080/tfs/GenAI/Tasks"
+          required
+        >
+      </div>
+
+      <!-- Test Plan URL -->
+      <div class="config-row">
+        <label for="tfs-test-plan-url" style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--ink);margin-bottom:8px;display:block;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            Test Plan URL
+            <span style="font-size:var(--fs-xs);color:#dc2626;font-weight:var(--fw-normal);">*</span>
+          </div>
+        </label>
+        <input 
+          type="text" 
+          id="tfs-test-plan-url" 
+          class="config-input" 
+          placeholder="http://tfs-server:8080/tfs/GenAI/TestPlans"
+          oninput="onTestPlanUrlChange()"
+          required
+        >
+      </div>
+
+      <!-- Authentication Method Info -->
+      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:0.85rem;color:#0369a1;line-height:1.4;">
+        <strong>Authentication:</strong> Use either Username/Password OR PAT Token (one method required)
+      </div>
+
+      <!-- Username -->
+      <div class="config-row">
+        <label for="tfs-username" style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--ink);margin-bottom:8px;display:block;">Username</label>
+        <input 
+          type="text" 
+          id="tfs-username" 
+          class="config-input" 
+          placeholder="admin"
+        >
+      </div>
+
+      <!-- Password -->
+      <div class="config-row">
+        <label for="tfs-password" style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--ink);margin-bottom:8px;display:block;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            Password
+            <span style="font-size:var(--fs-xs);color:var(--muted);font-weight:var(--fw-normal);">(or use PAT Token)</span>
+          </div>
+        </label>
+        <input 
+          type="password" 
+          id="tfs-password" 
+          class="config-input" 
+          placeholder="Enter your password (leave empty if using PAT Token)"
+        >
+      </div>
+
+      <!-- PAT Token -->
+      <div class="config-row">
+        <label for="tfs-pat-token" style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--ink);margin-bottom:8px;display:block;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            PAT Token
+            <span style="font-size:var(--fs-xs);color:var(--muted);font-weight:var(--fw-normal);">(or use Password)</span>
+            <span class="config-tooltip" title="Personal Access Token for TFS/Azure DevOps. Use this if you have a PAT, or use Username/Password instead" style="cursor:help;font-size:12px;color:var(--muted);">ℹ️</span>
+          </div>
+        </label>
+        <input 
+          type="password" 
+          id="tfs-pat-token" 
+          class="config-input" 
+          placeholder="Personal Access Token (leave empty if using Username/Password)"
+        >
+      </div>
+
+      <!-- Status Message -->
+      <div class="config-status" id="tfs-status" style="min-height:24px;font-size:var(--fs-sm);margin-bottom:16px;padding:8px 12px;border-radius:6px;display:none;"></div>
+
+      <!-- Old Section to Remove -->
+      <!-- Removed: Old Password and PAT Token sections are now combined above -->
+
+      <!-- Current Iteration (Auto-fetched) -->
+      <div id="tfs-iteration-display" style="display:none;background:#f0fdf4;border:1px solid #dcfce7;border-radius:8px;padding:12px 14px;margin-bottom:16px;">
+        <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:var(--fw-semibold);margin-bottom:6px;">✅ Current Iteration Fetched:</div>
+        <div id="tfs-iteration-display-value" style="font-size:var(--fs-sm);color:#059669;font-family:monospace;word-break:break-all;"></div>
+      </div>
+    </div>
+
+    <!-- Footer Bar -->
+    <div style="padding: 12px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: nowrap; background: var(--bg);">
+      <button 
+        class="btn-secondary" 
+        onclick="testTFSConnectionComplete()"
+        style="display:flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0;padding:8px 11px;font-size:0.9rem;"
+      >
+        <span>🧪</span> Test Connection
+      </button>
+      <button 
+        class="btn-primary" 
+        onclick="saveTFSConnection()"
+        style="display:flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0;padding:8px 11px;font-size:0.9rem;"
+        id="btn-save-tfs"
+      >
+        <span>✓</span> Save
+      </button>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- ══ STEP 1: SELECT AGENT ══ -->
+  <div class="panel active" id="panel-agent-select">
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:12px;">
+      <div>
+        <p style="font-size:var(--fs-xs);font-family:'Syne',sans-serif;font-weight:var(--fw-bold);letter-spacing:2.5px;text-transform:uppercase;color:var(--accent);margin-bottom:4px">Step 1 of 4</p>
+        <h2 style="font-family:'Syne',sans-serif;font-size:25px;font-weight:var(--fw-extrabold);margin-bottom:4px;letter-spacing:var(--ls-normal);line-height:var(--lh-snug);color:var(--ink);display:flex;align-items:center;gap:8px"><span style="font-size:20px;opacity:0.85">🤖</span>Select an Agent</h2>
+        <p style="font-size:var(--fs-sm);color:var(--muted);line-height:var(--lh-spacious)">Choose which agent you want to run. Each agent has specialized capabilities for different tasks.</p>
+      </div>
+      <button class="proceed-btn" id="btn-continue" disabled onclick="continueToConfig()" style="margin-bottom:10px; min-width:240px;">
+        Select an agent to continue →
+      </button>
+    </div>
+
+    <div id="config-requirement-message" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px 16px;margin-bottom:20px;display:none;color:#92400e;font-size:var(--fs-sm);">
+      ⚠️ <strong>Before selecting an agent:</strong> Please configure TFS Server and Azure OpenAI using the buttons in the header above.
+    </div>
+
+    <div class="agent-grid" id="agent-grid-container">
+      <!-- Task Creation Agent -->
+      <div class="agent-card" onclick="selectAgent('task-creation', this)">
+        <div class="agent-header">
+          <span class="agent-icon">📋</span>
+          <span class="agent-status" id="status-task-creation">Ready</span>
+        </div>
+        <div class="agent-name">Task Creation Agent</div>
+        <div class="agent-desc">Create and manage TFS tasks automatically from requirements</div>
+        <div class="agent-features">
+          <span class="feature-tag">Task Management</span>
+          <span class="feature-tag">TFS Integration</span>
+          <span class="feature-tag">Auto-Creation</span>
+        </div>
+      </div>
+
+      <!-- Test Case Agent -->
+      <div class="agent-card" onclick="selectAgent('test-case', this)">
+        <div class="agent-header">
+          <span class="agent-icon">🧪</span>
+          <span class="agent-status" id="status-test-case">Ready</span>
+        </div>
+        <div class="agent-name">Test Case Generator</div>
+        <div class="agent-desc">Generate comprehensive test cases with coverage analysis</div>
+        <div class="agent-features">
+          <span class="feature-tag">Test Planning</span>
+          <span class="feature-tag">Test Coverage</span>
+          <span class="feature-tag">Auto-Generation</span>
+        </div>
+      </div>
+
+      <!-- Bug & Feature Creation Agent -->
+      <div class="agent-card" onclick="selectAgent('bug-creation', this)">
+        <div class="agent-header">
+          <span class="agent-icon">🐛</span>
+          <span class="agent-status" id="status-bug-creation">Ready</span>
+        </div>
+        <div class="agent-name">Bug & Feature Agent</div>
+        <div class="agent-desc">Create and manage TFS bug or feature work items with comprehensive details</div>
+        <div class="agent-features">
+          <span class="feature-tag">Bug & Feature</span>
+          <span class="feature-tag">Triage & Priority</span>
+          <span class="feature-tag">Documentation</span>
+        </div>
+      </div>
+
+      <!-- Dashboard Agent -->
+      <div class="agent-card" onclick="selectAgent('dashboard', this)">
+        <div class="agent-header">
+          <span class="agent-icon">📊</span>
+          <span class="agent-status" id="status-dashboard">Ready</span>
+        </div>
+        <div class="agent-name">Dashboard Agent</div>
+        <div class="agent-desc">Generate QA activity dashboard from TFS queries and Excel reports (Static or AI-powered)</div>
+        <div class="agent-features">
+          <span class="feature-tag">TFS Queries</span>
+          <span class="feature-tag">QA Metrics</span>
+          <span class="feature-tag">AI Analysis</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ══ STEP 2: CONFIGURE ══ -->
+  <div class="panel" id="panel-config">
+    <div class="mapping-header">
+      <div>
+        <div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">
+          <div class="mapping-title" id="config-title">Step 2: Configure Agent</div>
+          <div id="config-description" style="font-size:0.7rem; color:#64748b; font-weight:400;">Enter the required parameters for the selected agent</div>
+        </div>
+      </div>
+      <button class="btn-secondary" onclick="goBack()">← Back</button>
+    </div>
+
+    <div class="config-form" id="config-form">
+      <!-- Dynamically populated based on selected agent -->
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-primary" id="btn-execute" onclick="executeAgent()">
+        ▶ Execute Agent
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ STEP 3: EXECUTION ══ -->
+  <div class="panel" id="panel-execution">
+    <div class="progress-center">
+      <div class="progress-title">Executing Agent</div>
+      <div class="progress-sub">Processing your request...</div>
+      <div class="progress-track">
+        <div class="progress-fill" id="prog-fill"></div>
+      </div>
+      <div class="progress-msg" id="prog-msg">Starting...</div>
+      <div class="progress-steps">
+        <div class="prog-step" id="ps-1"><span class="prog-step-icon">⚡</span> Initializing agent</div>
+        <div class="prog-step" id="ps-2"><span class="prog-step-icon">🔄</span> Processing input</div>
+        <div class="prog-step" id="ps-3"><span class="prog-step-icon">🧠</span> AI reasoning</div>
+        <div class="prog-step" id="ps-4"><span class="prog-step-icon">✅</span> Completing task</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ STEP 4: RESULTS ══ -->
+  <div class="panel" id="panel-results">
+    <div class="results-topbar">
+      <div>
+        <div class="results-title">Execution Results</div>
+        <div class="results-meta" id="results-meta"></div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div class="custom-dropdown-container" id="download-dash-dropdown" style="display:none;">
+          <button class="dash-copy-btn" onclick="toggleDownloadDropdown()" style="display:flex;align-items:center;gap:6px;height:38px;padding:0 14px;background:#f0fdfa;color:#0d9488;border:1px solid #99f6e4;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            <span style="font-weight:600;font-size:0.9rem;">Download Dashboard</span>
+          </button>
+          <div class="custom-dropdown-list" id="download-options" style="right:0;width:180px;">
+            <div class="custom-dropdown-item" onclick="downloadDashboard('image')">🖼️ Save as Image (PNG)</div>
+            <div class="custom-dropdown-item" onclick="downloadDashboard('pdf')">📄 Save as PDF</div>
+          </div>
+        </div>
+        <button class="new-verify-btn" onclick="newExecution()">↩ New Execution</button>
+        <button class="export-btn" onclick="exportResults()">⬇ Export Report</button>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box s-total">
+        <div class="s-num" id="s-status">✓</div>
+        <div class="s-lbl">Status</div>
+        <div class="s-bar" style="width:100%"></div>
+      </div>
+      <div class="stat-box s-info">
+        <div class="s-num" id="s-items">-</div>
+        <div class="s-lbl">Items Created</div>
+        <div class="s-bar" id="s-items-bar"></div>
+      </div>
+      <div class="stat-box s-pass">
+        <div class="s-num" id="s-duration">-</div>
+        <div class="s-lbl">Duration</div>
+        <div class="s-bar" id="s-duration-bar"></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="tab-btn active" id="tab-btn-output" onclick="setResultsTab('output',this)">📄 Output</button>
+      <button class="tab-btn" id="tab-btn-dashboard" onclick="setResultsTab('dashboard',this)" style="display:none;">📊 Dashboard</button>
+      <button class="tab-btn" id="tab-btn-details" onclick="setResultsTab('details',this)">📋 Details</button>
+      <button class="tab-btn" id="tab-btn-logs" onclick="setResultsTab('logs',this)">📊 Logs</button>
+      <input class="search-input" id="search-input" placeholder="Search…" oninput="filterResults()">
+    </div>
+
+    <div class="results-content">
+      <div id="tab-output" class="results-tab active">
+        <pre id="output-content"></pre>
+      </div>
+
+      <div id="tab-dashboard" class="results-tab" style="padding:0;">
+        <div id="dashboard-content" style="padding:20px;overflow:auto;"></div>
+      </div>
+      
+      <div id="tab-details" class="results-tab">
+        <div id="details-content"></div>
+      </div>
+      
+      <div id="tab-logs" class="results-tab">
+        <pre id="logs-content"></pre>
+      </div>
+    </div>
+
+    <!-- Test Case Selection & Upload Section (Initially Hidden) -->
+    <div id="testcase-upload-section" style="display:none;padding:16px;border-top:1px solid #e2e8f0;background:#f0fdf4;">
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;justify-content:space-between;">
+          <span style="font-size:0.9rem;font-weight:600;color:#0f172a;">📋 Select Test Cases to Upload</span>
+          <span id="testcase-count-display" style="font-size:0.85rem;color:#0f766e;font-weight:600;"></span>
+        </div>
+        <button onclick="toggleSelectAllTestCases()" style="padding:4px 8px;background:#dcfce7;color:#15803d;border:1px solid #86efac;border-radius:4px;cursor:pointer;font-size:0.8rem;font-weight:600;margin-bottom:8px;">Select All</button>
+        <div id="testcase-selection-list" style="background:white;border:1px solid #cbd5e1;border-radius:6px;max-height:250px;overflow-y:auto;"></div>
+      </div>
+
+      <div style="height:1px;background:#e2e8f0;margin:16px 0;"></div>
+
+      <!-- STEP 1: Plan Selector -->
+      <div style="margin-bottom:20px;padding:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;">
+        <label style="font-size:0.95rem;font-weight:700;color:#0c4a6e;display:block;margin-bottom:8px;">
+          📋 Step 1: Select Test Plan
+        </label>
+        <p style="font-size:0.8rem;color:#0c4a6e;margin-bottom:10px;margin-top:0;">Plans auto-load after you save TFS configuration (they will appear below)</p>
+        <select 
+          id="plan-select" 
+          style="width:100%;padding:10px 12px;border:1px solid #7dd3fc;border-radius:6px;font-size:0.9rem;margin-bottom:8px;background:white;cursor:pointer;"
+          onchange="onPlanSelected()"
+        >
+          <option value="">-- Select a Plan --</option>
+        </select>
+        <div id="plan-status" style="font-size:0.85rem;color:#0c4a6e;margin:0;padding:4px 0;"></div>
+      </div>
+
+      <!-- STEP 2: Suite Selector (highlights when plan selected) -->
+      <div id="suite-section" style="margin-bottom:16px;padding:12px;background:#f5f5f5;border:1px solid #d1d5db;border-radius:8px;opacity:0.6;">
+        <label style="font-size:0.95rem;font-weight:700;color:#6b7280;display:block;margin-bottom:8px;">
+          🎯 Step 2: Select Test Suite for Plan
+        </label>
+        <p style="font-size:0.8rem;color:#9ca3af;margin:0 0 10px 0;">Select a suite from the selected test plan</p>
+        
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+          <select 
+            id="suite-select" 
+            style="flex:1;padding:10px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.9rem;cursor:not-allowed;background:#f9fafb;"
+            onchange="onSuiteSelected()"
+            disabled
+          >
+            <option value="">-- Select Test Suite --</option>
+          </select>
+          <span id="suite-count" style="padding:8px 12px;background:#f0fdf4;color:#059669;border:1px solid #dcfce7;border-radius:6px;font-size:0.85rem;font-weight:600;white-space:nowrap;display:none;">✅ Suites loaded</span>
+          <button
+            id="suite-refresh-btn"
+            type="button"
+            onclick="refreshSelectedPlanSuites(true)"
+            title="Refresh suites"
+            style="width:32px;height:32px;border:1px solid #cbd5e1;border-radius:6px;background:#ffffff;color:#334155;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;"
+            aria-label="Refresh suites"
+          >↻</button>
+        </div>
+        
+        <div id="suite-status" style="padding:8px 12px;border-radius:6px;font-size:0.85rem;display:none;"></div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="cancelTestCaseUpload()" style="padding:8px 14px;background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;font-size:0.9rem;">Cancel</button>
+        <button onclick="uploadTestCasesToSuite()" style="padding:8px 14px;background:#0f766e;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.9rem;font-weight:600;">🚀 Upload to Suite</button>
+      </div>
+    </div>
+
+    <!-- Test Case Regenerate Section (Initially Hidden) -->
+    <!-- Test Case Analysis Chat Section -->
+    <div id="testcase-analysis-chat-section" style="display:none;padding:16px;border-top:1px solid #e2e8f0;background:#f8fafc;">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+        <span style="font-size:0.9rem;font-weight:600;color:#0f172a;">💬 Test Case Analysis & Review</span>
+        <button onclick="reviewTestCases()" style="padding:6px 12px;background:#7c3aed;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:all 0.2s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">🔍 Review Test Cases</button>
+      </div>
+
+      <!-- Chat Messages Container -->
+      <div id="testcase-chat-container" style="background:white;border:1px solid #cbd5e1;border-radius:8px;min-height:200px;max-height:400px;overflow-y:auto;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;">
+        <div style="text-align:center;color:#64748b;font-size:0.9rem;padding:20px;">
+          <div>💭 Start by asking questions about your test cases</div>
+          <div style="font-size:0.85rem;margin-top:8px;">Click "Review Test Cases" for AI analysis or type your own question</div>
+        </div>
+      </div>
+
+      <!-- Input Area with Inline Icons -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;position:relative;">
+        <div style="flex:1;position:relative;">
+          <textarea 
+            id="testcase-chat-input" 
+            placeholder="Ask: 'Did we cover everything as per user story?' or 'What are missing edge cases?'"
+            style="flex:1;width:100%;min-height:60px;padding:10px 80px 10px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.9rem;font-family:inherit;resize:vertical;box-sizing:border-box;"
+            onkeydown="handleChatInputKeydown(event)"
+          ></textarea>
+          <!-- Send Icon Button -->
+          <button onclick="sendTestCaseQuestion()" style="position:absolute;right:50px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:22px;cursor:pointer;color:#0f766e;opacity:0.6;transition:opacity 0.2s;padding:4px;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Send (Enter)">📤</button>
+          <!-- Clear Icon Button -->
+          <button onclick="clearChatInput()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:22px;cursor:pointer;color:#dc2626;opacity:0.6;transition:opacity 0.2s;padding:4px;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Clear">✕</button>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;">
+        <button onclick="showTestCaseUploadUI()" style="padding:8px 14px;background:#0f766e;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.9rem;font-weight:600;">📤 Upload to Suite</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Debug log panel — hidden by default, toggled by user -->
+<div id="debug-panel" style="display:none;position:fixed;bottom:48px;left:0;right:0;
+  background:#111827;border-top:2px solid #374151;z-index:998;box-shadow:0 -4px 20px rgba(0,0,0,0.3)">
+  <div style="padding:7px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #374151;">
+    <span style="font-size:11px;font-family:monospace;color:#9ca3af;font-weight:600;">🔍 Activity Log</span>
+    <div style="display:flex;gap:8px">
+      <button onclick="document.getElementById('debug-log').innerHTML='';document.getElementById('debug-error-count').textContent='0';"
+        style="font-size:10px;background:#374151;border:none;color:#9ca3af;padding:3px 10px;border-radius:4px;cursor:pointer;">Clear</button>
+      <button onclick="toggleDebugPanel()"
+        style="font-size:10px;background:#374151;border:none;color:#9ca3af;padding:3px 10px;border-radius:4px;cursor:pointer;">✕ Close</button>
+    </div>
+  </div>
+  <div id="debug-log" style="height:180px;overflow-y:auto;padding:8px 16px;font-family:monospace;font-size:12px;color:#e5e7eb;background:#111827;line-height:1.5;white-space:pre-wrap;word-wrap:break-word;"></div>
+</div>
+
+<!-- Floating debug toggle button — bottom right corner -->
+<div id="debug-toggle-btn" onclick="toggleDebugPanel()"
+  style="position:fixed;bottom:14px;right:20px;z-index:999;
+         background:#1f2937;border:1px solid #374151;border-radius:20px;
+         padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;
+         font-family:monospace;font-size:11px;color:#9ca3af;
+         box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:all 0.15s;">
+  <span style="width:7px;height:7px;border-radius:50%;background:#6b7280;flex-shrink:0" id="debug-dot"></span>
+  <span>Activity Log</span>
+  <span id="debug-error-count" style="display:none;background:#ef4444;color:white;border-radius:10px;padding:1px 6px;font-size:10px">0</span>
+</div>
+
+<div style="height:20px"></div>
+<!-- User Guide / Documentation Modal -->
+<!-- Synced with USER_GUIDE.md -->
+<style>
+  .guidev2-shell { max-width: 1160px; width: min(1160px, 96vw); height: min(88vh, 820px); margin-top: 42px; display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 60px rgba(2, 6, 23, 0.28); font-family: 'Segoe UI', 'Inter', Roboto, Arial, sans-serif; }
+  .guidev2-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #e2e8f0; background: #ffffff; }
+  .guidev2-top-title { font-size: 1.02rem; font-weight: 700; color: #0f172a; }
+  .guidev2-top-sub { font-size: 0.84rem; color: #64748b; margin-top: 2px; line-height: 1.4; }
+  .guidev2-xbtn { background:#f8fafc; border:1px solid #cbd5e1; color:#0f172a; border-radius:8px; width:30px; height:30px; cursor:pointer; font-weight:700; font-size:0.92rem; line-height:1; display:flex; align-items:center; justify-content:center; }
+  .guidev2-xbtn:hover { background:#eef2f7; }
+  .guidev2-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px 1fr; background: #f8fafc; }
+  .guidev2-side { border-right: 1px solid #e2e8f0; background: #ffffff; display: flex; flex-direction: column; min-height: 0; }
+  .guidev2-brand { padding: 16px 18px 10px; border-bottom: 1px solid #f1f5f9; }
+  .guidev2-brand h3 { margin: 0; font-size: 1.05rem; color: #0f766e; }
+  .guidev2-brand p { margin: 4px 0 0; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+  .guidev2-group { padding: 12px 0; }
+  .guidev2-label { padding: 0 18px 8px; font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 800; }
+  .guidev2-nav { display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-right: 3px solid transparent; cursor: pointer; color: #334155; font-weight: 600; font-size: 0.93rem; transition: 0.18s ease; }
+  .guidev2-nav:hover { background: #f8fafc; color: #0f766e; }
+  .guidev2-nav.active { background: #f0fdfa; color: #0f766e; border-right-color: #0f766e; }
+  .guidev2-nav-ico { width: 17px; height: 17px; color: #94a3b8; flex-shrink: 0; }
+  .guidev2-nav.active .guidev2-nav-ico, .guidev2-nav:hover .guidev2-nav-ico { color: #0f766e; }
+  .guidev2-side-foot { margin-top: auto; padding: 14px 18px; border-top: 1px solid #f1f5f9; font-size: 0.78rem; color: #475569; background: #f8fafc; font-weight: 600; line-height: 1.45; }
+  .guidev2-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .guidev2-breadcrumb { display: flex; align-items: center; gap: 8px; padding: 11px 20px; font-size: 0.82rem; color: #64748b; border-bottom: 1px solid #e2e8f0; background: #ffffff; }
+  .guidev2-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px 24px; }
+  .guidev2-section { max-width: 900px; margin: 0 auto 16px; }
+  .guidev2-section h1 { margin: 0 0 8px; font-size: 1.48rem; color: #0f172a; letter-spacing: -0.01em; }
+  .guidev2-section .sub { margin: 0 0 14px; color: #475569; font-size: 0.95rem; line-height: 1.55; }
+  .guidev2-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); }
+  .guidev2-card h3 { margin: 0 0 8px; font-size: 1rem; color: #0f172a; }
+  .guidev2-list { margin: 0; padding-left: 18px; color: #334155; line-height: 1.68; font-size: 0.92rem; }
+  .guidev2-list li { margin-bottom: 4px; }
+  .guidev2-grid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 12px; }
+  .guidev2-step { border: 1px solid #e2e8f0; border-left: 3px solid #99f6e4; border-radius: 12px; padding: 12px; background: #ffffff; }
+  .guidev2-step strong { color: #0f172a; }
+  .guidev2-kbd { background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; border-radius: 6px; padding: 2px 7px; font-size: 0.82rem; font-weight: 700; }
+  .guidev2-foot { padding: 12px 18px; border-top: 1px solid #e2e8f0; background: #ffffff; display: flex; justify-content: flex-end; }
+  @media (max-width: 960px) {
+    .guidev2-body { grid-template-columns: 1fr; }
+    .guidev2-side { border-right: 0; border-bottom: 1px solid #e2e8f0; max-height: 240px; overflow-y: auto; }
+    .guidev2-section h1 { font-size: 1.3rem; }
+    .guidev2-grid { grid-template-columns: 1fr; }
+  }
+</style>
+<div class="modal-overlay" id="guide-modal" onclick="if(event.target===this) closeGuideModal()" style="display:none;">
+  <div class="modal-box guidev2-shell">
+    <div class="guidev2-top">
+      <div>
+        <div class="guidev2-top-title">User Guide</div>
+        <div class="guidev2-top-sub">Step-by-step instructions for both technical and non-technical users</div>
+      </div>
+      <button class="guidev2-xbtn" onclick="closeGuideModal()" aria-label="Close guide" title="Close">✕</button>
+    </div>
+
+    <div class="guidev2-body">
+      <aside class="guidev2-side">
+        <div class="guidev2-brand">
+          <h3>TFS Agent Hub</h3>
+          <p>Guided Documentation</p>
+        </div>
+
+        <div class="guidev2-group">
+          <div class="guidev2-label">Start Here</div>
+          <div class="doc-nav-link help-nav-item guidev2-nav active" onclick="switchHelpTab('setup', this)">
+            <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/></svg>
+            Quick Start
+          </div>
+          <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('connectivity', this)">
+            <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+            Setup Checklist
+          </div>
+        </div>
+
+        <div class="guidev2-group">
+          <div class="guidev2-label">Agent Guides</div>
+          <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('agent1', this)">
+            <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+            Agent 1 Task Creation
+          </div>
+          <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('agent2', this)">
+            <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v5l-4 7a4 4 0 0 0 3.5 6h5a4 4 0 0 0 3.5-6l-4-7V3"/><path d="M8 14h8"/></svg>
+            Agent 2 Test Case Generator
+          </div>
+          <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('agent3', this)">
+            <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Agent 3 Self-Healing Engine
+          </div>
+          <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('agent4', this)">
+            <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4v6c0 5-3.4 7.7-8 8-4.6-.3-8-3-8-8V7l8-4Z"/><path d="m9.5 12 1.8 1.8L14.8 10"/></svg>
+            Agent 4 Bug and Feature
+          </div>
+          <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('agent5', this)">
+            <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><rect x="7" y="11" width="3" height="6"/><rect x="12" y="8" width="3" height="9"/><rect x="17" y="6" width="3" height="11"/></svg>
+            Agent 5 Dashboard
+          </div>
+        </div>
+
+        <div class="guidev2-side-foot">Tip: Run with small sample data first, then scale.</div>
+      </aside>
+
+      <section class="guidev2-main">
+        <div class="guidev2-breadcrumb"><span>TFS Agent Hub</span><span>&gt;</span><span id="breadcrumb-current" style="font-weight:700;color:#0f766e;">Quick Start</span></div>
+        <div class="guidev2-scroll">
+          <div id="htab-setup" class="help-content-section guidev2-section">
+            <h1>How the platform works</h1>
+            <p class="sub">Every agent follows the same 4 stage flow, so anyone can learn it once and use all agents.</p>
+            <div class="guidev2-card">
+              <h3>Before you execute</h3>
+              <ol class="guidev2-list">
+                <li>Save TFS Server configuration successfully.</li>
+                <li>Save AI Provider configuration successfully.</li>
+                <li>Use one small sample first to validate output format.</li>
+              </ol>
+            </div>
+            <div class="guidev2-grid" style="margin-bottom:12px;">
+              <div class="guidev2-step"><strong>Step 1: Select Agent</strong><br>Pick the agent based on your goal.</div>
+              <div class="guidev2-step"><strong>Step 2: Configure</strong><br>Fill required inputs shown in the form.</div>
+              <div class="guidev2-step"><strong>Step 3: Execute</strong><br>Click <span class="guidev2-kbd">Execute Agent</span>.</div>
+              <div class="guidev2-step"><strong>Step 4: Review</strong><br>Check output, logs, and export or upload when available.</div>
+            </div>
+            <div class="guidev2-card">
+              <h3>For non technical users</h3>
+              <ol class="guidev2-list">
+                <li>Use default values first.</li>
+                <li>If you see an error, open the Logs tab and share the message.</li>
+                <li>Start with one story or one file before running bulk data.</li>
+              </ol>
+            </div>
+            <div class="guidev2-card">
+              <h3>For technical users</h3>
+              <ol class="guidev2-list">
+                <li>Validate TFS and provider connections before execution.</li>
+                <li>Use fetched story details and prompt overrides only when needed.</li>
+                <li>Use output and logs together for root cause analysis.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div id="htab-connectivity" class="help-content-section guidev2-section" style="display:none;">
+            <h1>Setup checklist</h1>
+            <p class="sub">Complete both setup windows from the top header before using any agent.</p>
+            <div class="guidev2-card">
+              <h3>1) TFS Server</h3>
+              <ol class="guidev2-list">
+                <li>Open <span class="guidev2-kbd">TFS Server</span>.</li>
+                <li>Fill Base URL, Task URL, and Test Plan URL.</li>
+                <li>Use either Username/Password or PAT token.</li>
+                <li>Click Test Connection, then Save.</li>
+              </ol>
+            </div>
+            <div class="guidev2-card">
+              <h3>2) AI Provider</h3>
+              <ol class="guidev2-list">
+                <li>Open <span class="guidev2-kbd">AI Provider</span>.</li>
+                <li>Select provider and add API key.</li>
+                <li>For Azure: also fill Endpoint, Deployment, and API Version.</li>
+                <li>Click Test, then Save.</li>
+              </ol>
+            </div>
+            <div class="guidev2-card">
+              <h3>If something fails</h3>
+              <ol class="guidev2-list">
+                <li>Re-open TFS and AI modals and test again.</li>
+                <li>Check required fields are not blank.</li>
+                <li>Run the agent and inspect the Logs tab for exact error.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div id="htab-agent1" class="help-content-section guidev2-section" style="display:none;">
+            <h1>Agent 1: Task Creation</h1>
+            <p class="sub">Creates or updates TFS tasks using Excel, OneDrive, or Google Drive input.</p>
+            <div class="guidev2-card">
+              <h3>Inputs</h3>
+              <ul class="guidev2-list">
+                <li>Bulk mode: Create or Update</li>
+                <li>Iteration path</li>
+                <li>Input source file or link and sheet name</li>
+              </ul>
+            </div>
+            <div class="guidev2-card">
+              <h3>Step by step</h3>
+              <ol class="guidev2-list">
+                <li>Select Agent 1.</li>
+                <li>Choose Create or Update mode.</li>
+                <li>Select input method and provide file or link.</li>
+                <li>Load and confirm the target sheet.</li>
+                <li>Execute and review summary in output and details tabs.</li>
+              </ol>
+            </div>
+            <div class="guidev2-card">
+              <h3>Output you should see</h3>
+              <ul class="guidev2-list">
+                <li>Creation or update summary in Output tab.</li>
+                <li>Item-level details in Details tab.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="htab-agent2" class="help-content-section guidev2-section" style="display:none;">
+            <h1>Agent 2: Test Case Generator</h1>
+            <p class="sub">Generates functional or UI test cases from a story and supports refinement using review chat.</p>
+            <div class="guidev2-card">
+              <h3>Inputs</h3>
+              <ul class="guidev2-list">
+                <li>User Story ID (recommended) or manual story text</li>
+                <li>SOP text (editable)</li>
+                <li>Mode: Functional, UI, or Both</li>
+                <li>Optional UI screenshots</li>
+              </ul>
+            </div>
+            <div class="guidev2-card">
+              <h3>Step by step</h3>
+              <ol class="guidev2-list">
+                <li>Select Agent 2.</li>
+                <li>Enter story ID and click Fetch.</li>
+                <li>Set test mode and optional screenshots.</li>
+                <li>Execute and review generated table.</li>
+                <li>Use analysis chat to ask for gaps or edge cases.</li>
+                <li>Upload selected test cases to suite when ready.</li>
+              </ol>
+            </div>
+            <div class="guidev2-card">
+              <h3>Output you should see</h3>
+              <ul class="guidev2-list">
+                <li>Structured test cases with clear steps and expected result.</li>
+                <li>Optional additional cases from review chat.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="htab-agent3" class="help-content-section guidev2-section" style="display:none;">
+            <h1>Agent 3: Self-Healing Engine</h1>
+            <p class="sub">Autonomous system that reviews and repairs agent outputs to ensure zero-error results across the platform.</p>
+            <div class="guidev2-card">
+              <h3>Global Capabilities</h3>
+              <ul class="guidev2-list">
+                <li><strong>Agent 1 Support:</strong> Validates task descriptions and mandatory TFS fields for Tasking Agent.</li>
+                <li><strong>Agent 2 Support:</strong> Fixes malformed Markdown tables for perfectly formatted Test Case grids.</li>
+                <li><strong>Agent 4 Support:</strong> Sanity-checks reproduction steps and triage fields for Bug & Feature Agent.</li>
+              </ul>
+            </div>
+            <div class="guidev2-card">
+              <h3>Intelligent Repair Process</h3>
+              <ol class="guidev2-list">
+                <li><strong>Autonomous Correction:</strong> Instantly detects missing columns or formatting errors.</li>
+                <li><strong>Format Enforcement:</strong> Enforces professional TFS standards for all work item types.</li>
+                <li><strong>Zero-Intervention:</strong> Repairs happen silently in the background before you see the result.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div id="htab-agent4" class="help-content-section guidev2-section" style="display:none;">
+            <h1>Agent 4: Bug and Feature</h1>
+            <p class="sub">Converts raw issue notes into structured TFS bug or feature work items.</p>
+            <div class="guidev2-card">
+              <h3>Inputs</h3>
+              <ul class="guidev2-list">
+                <li>Description in chat</li>
+                <li>Optional screenshots</li>
+                <li>Triage fields: area, iteration, severity, priority, tags, assignee</li>
+              </ul>
+            </div>
+            <div class="guidev2-card">
+              <h3>Step by step</h3>
+              <ol class="guidev2-list">
+                <li>Select Agent 4 and choose Bug or Feature.</li>
+                <li>Describe the issue in chat.</li>
+                <li>Review auto-filled title and description.</li>
+                <li>Add or adjust triage fields.</li>
+                <li>Execute to create, or use Update Existing mode to modify.</li>
+              </ol>
+            </div>
+            <div class="guidev2-card">
+              <h3>Output you should see</h3>
+              <ul class="guidev2-list">
+                <li>Created or updated work item confirmation.</li>
+                <li>Captured fields visible in output and logs.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="htab-agent5" class="help-content-section guidev2-section" style="display:none;">
+            <h1>Agent 5: Dashboard</h1>
+            <p class="sub">Builds QA metrics dashboard using TFS queries and optional Excel inputs.</p>
+            <div class="guidev2-card">
+              <h3>Inputs</h3>
+              <ul class="guidev2-list">
+                <li>Query IDs or URLs: Bug, Retesting, Story, Other</li>
+                <li>Optional Excel files for validation or automation</li>
+                <li>Mode: Static or AI</li>
+              </ul>
+            </div>
+            <div class="guidev2-card">
+              <h3>Step by step</h3>
+              <ol class="guidev2-list">
+                <li>Select Agent 5.</li>
+                <li>Enter queries and optional files.</li>
+                <li>Choose Static or AI mode.</li>
+                <li>Execute and open Dashboard tab.</li>
+                <li>Download as PDF or image for sharing.</li>
+              </ol>
+            </div>
+            <div class="guidev2-card">
+              <h3>Output you should see</h3>
+              <ul class="guidev2-list">
+                <li>Dashboard charts and counts in Dashboard tab.</li>
+                <li>AI summary narrative when AI mode is selected.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="js/app.js?v=17"></script>
+</body>
+</html>
+
+
+
+
