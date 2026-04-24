@@ -6796,7 +6796,8 @@ function newExecution() {
   bugAgentState.history = [];
   bugAgentState.states = {
     'Bug': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
-    'Feature': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' }
+    'Feature': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
+    'User Story': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' }
   };
 
   // === Agent 5: Dashboard - clear query inputs and file inputs ===
@@ -8411,7 +8412,8 @@ let bugAgentState = {
     history: [],
     states: {
         'Bug': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
-        'Feature': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' }
+        'Feature': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
+        'User Story': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' }
     },
     dropdowns: {
         area: [],
@@ -8558,9 +8560,13 @@ function selectWIType(type) {
             messages.innerHTML = newState.chatHTML;
         } else {
             // Initial greeting if no history
+            let greeting = `Hello! Describe a bug, and I'll structure it for TFS. Screenshots are supported!`;
+            if (type === 'Feature') greeting = `Hello! Describe a new feature, and I'll structure it for TFS.`;
+            else if (type === 'User Story') greeting = `Hello! Describe a user story or requirement, and I'll structure it for TFS.`;
+            
             messages.innerHTML = `
                 <div class="chat-bubble ai">
-                  Hello! Describe a ${type === 'Bug' ? 'bug' : 'new feature'}, and I'll structure it for TFS. Screenshots are supported!
+                  ${greeting}
                 </div>
             `;
         }
@@ -8569,8 +8575,10 @@ function selectWIType(type) {
 
     const bugOpt = document.getElementById('opt-bug');
     const featOpt = document.getElementById('opt-feature');
+    const storyOpt = document.getElementById('opt-story');
     if (bugOpt) bugOpt.classList.toggle('active', type === 'Bug');
     if (featOpt) featOpt.classList.toggle('active', type === 'Feature');
+    if (storyOpt) storyOpt.classList.toggle('active', type === 'User Story');
     
     // Update labels and visibility
     const lbl = document.getElementById('lbl-description');
@@ -8581,6 +8589,10 @@ function selectWIType(type) {
         if (lbl) lbl.innerHTML = 'Description / Steps <span style="color:red">*</span>';
         if (area) area.placeholder = 'Detailed steps to reproduce...';
         if (rowBugTriage) rowBugTriage.style.display = 'grid';
+    } else if (type === 'User Story') {
+        if (lbl) lbl.innerHTML = 'Story Description / Acceptance Criteria <span style="color:red">*</span>';
+        if (area) area.placeholder = 'As a <role>, I want <capability>, so that <value>...';
+        if (rowBugTriage) rowBugTriage.style.display = 'none';
     } else {
         if (lbl) lbl.innerHTML = 'Business Value / Requirements <span style="color:red">*</span>';
         if (area) area.placeholder = 'What is the benefit and requirement?';
