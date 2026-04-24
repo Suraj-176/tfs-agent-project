@@ -2641,7 +2641,7 @@ function populateConfigForm(agentId) {
     });
 
   } else if (agentId === 'bug-creation') {
-    configTitle.textContent = 'Step 2: Bug & Feature Agent';
+    configTitle.textContent = 'Step 2: Bug, Feature & User Story Agent';
     configDesc.textContent = '— Describe via Chat → AI Structures → Refine & Create';
     
     configForm.style.padding = '0';
@@ -5678,7 +5678,7 @@ async function executeAgent() {
       return;
     }
 
-    // ==================== AGENT 3: Bug & Feature Creation Agent ====================
+    // ==================== AGENT 3: Bug, Feature & User Story Creation Agent ====================
     if (currentAgent === 'bug-creation') {
       const wiType = bugAgentState.wiType;
       const bugTitle = (document.getElementById('wi-title')?.value || '').trim();
@@ -5856,7 +5856,7 @@ async function executeAgent() {
       const finalStatus = {
         status: 'success',
         summary: { created: 1, total: 1, failed: 0 },
-        agent: `Bug & Feature Agent (${wiType})`,
+        agent: `Bug, Feature & User Story Agent (${wiType})`,
         report_rows: [{
           task_title: bugTitle,
           status: isUpdate ? 'Updated' : 'Created',
@@ -6759,7 +6759,7 @@ function newExecution() {
   const sopText = document.getElementById('sop-text');
   if (sopText) sopText.value = '';
 
-  // === Agent 3: Bug & Feature - clear all fields and state ===
+  // === Agent 3: Bug, Feature & User Story - clear all fields and state ===
   const wiTitle = document.getElementById('wi-title');
   if (wiTitle) wiTitle.value = '';
   const wiDescription = document.getElementById('wi-description');
@@ -8402,7 +8402,7 @@ async function generateMissingTestCases() {
 console.log('✅ All functions loaded');
 addDebugLog('✅ TFS Agent Hub initialized');
 
-// ==================== Agent 3: Bug & Feature Agent Logic ====================
+// ==================== Agent 3: Bug, Feature & User Story Agent Logic ====================
 
 let bugAgentState = {
     wiType: 'Bug',
@@ -8424,7 +8424,7 @@ let bugAgentState = {
 };
 
 async function initBugAgentState() {
-    addDebugLog('🔄 Initializing Bug & Feature Agent state...');
+    addDebugLog('🔄 Initializing Bug, Feature & User Story Agent state...');
     bugAgentState.wiType = 'Bug';
     bugAgentState.updateMode = false;
     bugAgentState.currentScreenshots = [];
@@ -8676,7 +8676,15 @@ async function fetchExistingWI() {
             const storyLinkEl = document.getElementById('wi-story-link');
             
             if (titleEl) titleEl.value = wi.title || '';
-            if (descEl) descEl.value = (wi.reproduction_steps || wi.description || '');
+            
+            // Set description based on type
+            if (descEl) {
+                if (wi.work_item_type === 'Bug') {
+                    descEl.value = (wi.reproduction_steps || wi.description || '');
+                } else {
+                    descEl.value = (wi.description || wi.reproduction_steps || '');
+                }
+            }
             if (areaEl) areaEl.value = wi.area_path || '';
             if (iterEl) iterEl.value = wi.iteration_path || '';
             if (sevEl) sevEl.value = wi.severity || '2 - High';
@@ -8691,8 +8699,13 @@ async function fetchExistingWI() {
             }
             
             // Auto-detect type
-            if (wi.work_item_type === 'Feature') selectWIType('Feature');
-            else selectWIType('Bug');
+            if (wi.work_item_type === 'Feature') {
+                selectWIType('Feature');
+            } else if (wi.work_item_type === 'User Story') {
+                selectWIType('User Story');
+            } else {
+                selectWIType('Bug');
+            }
             
             if (status) {
                 status.textContent = '✅ Loaded successfully';
