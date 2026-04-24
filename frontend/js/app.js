@@ -6795,9 +6795,9 @@ function newExecution() {
   bugAgentState.formScreenshots = [];
   bugAgentState.history = [];
   bugAgentState.states = {
-    'Bug': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
-    'Feature': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
-    'User Story': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' }
+    'Bug': { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
+    'Feature': { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
+    'User Story': { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' }
   };
 
   // === Agent 5: Dashboard - clear query inputs and file inputs ===
@@ -8411,9 +8411,9 @@ let bugAgentState = {
     formScreenshots: [],
     history: [],
     states: {
-        'Bug': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
-        'Feature': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
-        'User Story': { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' }
+        'Bug': { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
+        'Feature': { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
+        'User Story': { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' }
     },
     dropdowns: {
         area: [],
@@ -8535,8 +8535,12 @@ function selectWIType(type) {
     const titleEl = document.getElementById('wi-title');
     const descEl = document.getElementById('wi-description');
     const messages = document.getElementById('bug-chat-messages');
+    const workItemIdEl = document.getElementById('update-work-item-id');
 
+    if (!bugAgentState.states) bugAgentState.states = {};
+    
     bugAgentState.states[previousType] = {
+        workItemId: workItemIdEl ? workItemIdEl.value : '',
         title: titleEl ? titleEl.value : '',
         description: descEl ? descEl.value : '',
         formScreenshots: [...bugAgentState.formScreenshots],
@@ -8548,10 +8552,12 @@ function selectWIType(type) {
     bugAgentState.wiType = type;
     
     // --- RESTORE NEW STATE ---
-    const newState = bugAgentState.states[type] || { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' };
+    const newState = bugAgentState.states[type] || { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' };
     
+    if (workItemIdEl) workItemIdEl.value = newState.workItemId || '';
     if (titleEl) titleEl.value = newState.title || '';
     if (descEl) descEl.value = newState.description || '';
+    
     bugAgentState.formScreenshots = [...(newState.formScreenshots || [])];
     bugAgentState.history = [...(newState.history || [])];
 
