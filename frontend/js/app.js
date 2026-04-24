@@ -2678,8 +2678,9 @@ function populateConfigForm(agentId) {
         <!-- Right: TFS Form Side -->
         <div class="bug-form-pane" id="bug-form-scroll-pane" style="overflow: visible; height: auto; flex: 1.4; min-width: 400px; padding: 15px;">
           <div class="wi-type-toggle" style="margin-bottom:10px;">
-            <div class="wi-type-option active" id="opt-bug" onclick="selectWIType('Bug')">🐛 Bug</div>
-            <div class="wi-type-option" id="opt-feature" onclick="selectWIType('Feature')">✨ Feature</div>
+            <div class="wi-type-option ${bugAgentState.wiType === 'Bug' ? 'active' : ''}" id="opt-bug" onclick="selectWIType('Bug')">🐛 Bug</div>
+            <div class="wi-type-option ${bugAgentState.wiType === 'Feature' ? 'active' : ''}" id="opt-feature" onclick="selectWIType('Feature')">✨ Feature</div>
+            <div class="wi-type-option ${bugAgentState.wiType === 'User Story' ? 'active' : ''}" id="opt-story" onclick="selectWIType('User Story')">📖 User Story</div>
           </div>
 
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">

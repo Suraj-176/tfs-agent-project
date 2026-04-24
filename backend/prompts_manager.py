@@ -46,7 +46,8 @@ class PromptsManager:
             "ui": "",
             "combined": "",
             "bug_report": "",
-            "feature_report": ""
+            "feature_report": "",
+            "user_story_report": ""
         }
         
         # Parse file sections
@@ -78,6 +79,11 @@ class PromptsManager:
                 if current_content and current_section:
                     prompts[current_section] = '\n'.join(current_content).strip()
                 current_section = "feature_report"
+                current_content = []
+            elif '[USER_STORY_PROMPT]' in line:
+                if current_content and current_section:
+                    prompts[current_section] = '\n'.join(current_content).strip()
+                current_section = "user_story_report"
                 current_content = []
             elif '[STORY_ANALYSIS_PROMPT]' in line:
                 if current_content and current_section:

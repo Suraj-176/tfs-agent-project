@@ -115,11 +115,11 @@ def parse_llm_analysis_to_bug_fields(llm_analysis: str, work_item_type: str = "B
             
             # Map JSON keys to internal field names
             mapping = {
-                'title': ['title', 'bug_title', 'feature_title', 'summary', 'name'],
+                'title': ['title', 'bug_title', 'feature_title', 'user_story_title', 'summary', 'name'],
                 'description': ['description', 'overview', 'problem', 'problem_statement'],
                 'repro_steps': ['reproduction_steps', 'repro_steps', 'steps', 'requirements', 'how_to_reproduce'],
                 'actual_behavior': ['actual_behavior', 'actual_result', 'current_behavior', 'acceptance_criteria', 'actual'],
-                'expected_behavior': ['expected_behavior', 'expected_result', 'desired_behavior', 'business_value', 'expected'],
+                'expected_behavior': ['expected_behavior', 'expected_result', 'desired_behavior', 'business_value', 'expected', 'technical_notes'],
                 'severity': ['severity', 'bug_severity'],
                 'priority': ['priority', 'bug_priority']
             }
@@ -235,10 +235,16 @@ def execute_bug_creation(
     related_work_item_id: int = None,
 ):
     """
-    Main entry point for creating/updating Bugs/Features.
+    Main entry point for creating/updating Bugs/Features/User Stories.
     """
-    wi_type = "Bug" if not work_item_type or work_item_type.lower() == "bug" else "Feature"
-    
+    wi_type = "Bug"
+    if work_item_type:
+        type_lower = work_item_type.lower()
+        if "feature" in type_lower:
+            wi_type = "Feature"
+        elif "story" in type_lower:
+            wi_type = "User Story"
+
     if is_update and not work_item_id:
         return {"success": False, "message": "Work Item ID required for update"}
     
@@ -246,8 +252,17 @@ def execute_bug_creation(
     llm_fields = {}
     if llm_config and not (bug_title and (bug_description or reproduction_steps)):
         try:
+            from ..prompts_manager import PromptsManager
+            if wi_type == "Feature":
+                base_prompt = PromptsManager.get_feature_report_prompt()
+            elif wi_type == "User Story":
+                base_prompt = PromptsManager.get_user_story_report_prompt()
+            else:
+                base_prompt = PromptsManager.get_bug_report_prompt()
+
             agent = create_bug_creation_agent(llm_config)
-            task = Task(description=f"Analyze: {bug_description or reproduction_steps}", agent=agent, expected_output="Structured JSON fields")
+            task_desc = f"{base_prompt}\n\nAnalyze and format this input:\n{bug_description or reproduction_steps or bug_title}"
+            task = Task(description=task_desc, agent=agent, expected_output="Structured JSON fields")
             analysis = Crew(agents=[agent], tasks=[task]).kickoff()
             llm_fields = parse_llm_analysis_to_bug_fields(str(analysis), wi_type)
         except: pass
@@ -377,6 +392,15 @@ def execute_bug_creation(
         return {"success": False, "message": f"TFS Error: {resp.text}"}
     except Exception as e:
         return {"success": False, "message": str(e)}
+
+
+def process_multiple_bugs(bugs_data: List[Dict], llm_config: dict = None, tfs_config: dict = None) -> Dict:
+    count = 0
+    for b in bugs_data:
+        res = execute_bug_creation(**b, llm_config=llm_config, tfs_config=tfs_config)
+        if res.get('success'): count += 1
+    return {"success": True, "processed": count}
+
 
 
 def process_multiple_bugs(bugs_data: List[Dict], llm_config: dict = None, tfs_config: dict = None) -> Dict:
