@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -304,9 +304,6 @@
       <!-- Status Message -->
       <div class="config-status" id="tfs-status" style="min-height:24px;font-size:var(--fs-sm);margin-bottom:16px;padding:8px 12px;border-radius:6px;display:none;"></div>
 
-      <!-- Old Section to Remove -->
-      <!-- Removed: Old Password and PAT Token sections are now combined above -->
-
       <!-- Current Iteration (Auto-fetched) -->
       <div id="tfs-iteration-display" style="display:none;background:#f0fdf4;border:1px solid #dcfce7;border-radius:8px;padding:12px 14px;margin-bottom:16px;">
         <div style="font-size:var(--fs-xs);color:var(--muted);font-weight:var(--fw-semibold);margin-bottom:6px;">✅ Current Iteration Fetched:</div>
@@ -385,16 +382,16 @@
         </div>
       </div>
 
-      <!-- Bug & Feature Creation Agent -->
+      <!-- Bug, Feature & Story Creation Agent -->
       <div class="agent-card" onclick="selectAgent('bug-creation', this)">
         <div class="agent-header">
           <span class="agent-icon">🐛</span>
           <span class="agent-status" id="status-bug-creation">Ready</span>
         </div>
-        <div class="agent-name">Bug & Feature Agent</div>
-        <div class="agent-desc">Create and manage TFS bug or feature work items with comprehensive details</div>
+        <div class="agent-name">Bug, Feature & Story Agent</div>
+        <div class="agent-desc">Create and manage TFS bug, feature, or user story work items with comprehensive details</div>
         <div class="agent-features">
-          <span class="feature-tag">Bug & Feature</span>
+          <span class="feature-tag">Work Items</span>
           <span class="feature-tag">Triage & Priority</span>
           <span class="feature-tag">Documentation</span>
         </div>
@@ -709,7 +706,7 @@
   <div class="modal-box guidev2-shell">
     <div class="guidev2-top">
       <div>
-        <div class="guidev2-top-title">User Guide</div>
+        <div class="guidev2-top-title" id="guide-title-text">User Guide | Powered by: Suraj Yadav</div>
         <div class="guidev2-top-sub">Step-by-step instructions for both technical and non-technical users</div>
       </div>
       <button class="guidev2-xbtn" onclick="closeGuideModal()" aria-label="Close guide" title="Close">✕</button>
@@ -750,7 +747,7 @@
           </div>
           <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('agent4', this)">
             <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4v6c0 5-3.4 7.7-8 8-4.6-.3-8-3-8-8V7l8-4Z"/><path d="m9.5 12 1.8 1.8L14.8 10"/></svg>
-            Agent 4 Bug and Feature
+            Agent 4 Bug, Feature & Story
           </div>
           <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('agent5', this)">
             <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><rect x="7" y="11" width="3" height="6"/><rect x="12" y="8" width="3" height="9"/><rect x="17" y="6" width="3" height="11"/></svg>
@@ -966,8 +963,12 @@
       </section>
     </div>
 
+    <div class="guidev2-foot">
+      <button class="btn-primary" onclick="closeGuideModal()">Got it, let's go!</button>
+    </div>
   </div>
 </div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -975,27 +976,3 @@
 <script src="js/app.js?v=17"></script>
 </body>
 </html>
-cript>
-</body>
-</html>
-
-
-
-
-n.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="js/app.js?v=17"></script>
-</body>
-</html>
-
-
-
-
-pt>
-<script src="js/app.js?v=17"></script>
-</body>
-</html>
-
-
-
-

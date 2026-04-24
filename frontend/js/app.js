@@ -8548,7 +8548,7 @@ function selectWIType(type) {
     bugAgentState.wiType = type;
     
     // --- RESTORE NEW STATE ---
-    const newState = bugAgentState.states[type];
+    const newState = bugAgentState.states[type] || { title: '', description: '', formScreenshots: [], history: [], chatHTML: '' };
     
     if (titleEl) titleEl.value = newState.title || '';
     if (descEl) descEl.value = newState.description || '';
