@@ -5920,7 +5920,7 @@ async function executeAgent() {
           mode:       dashMode,
           llm_prompt: llmPrompt,
         })
-      }, dashMode === 'ai' ? 120000 : 60000);
+      }, dashMode === 'ai' ? 180000 : 180000);
 
       if (!dashResp.ok) {
         const err = await dashResp.json().catch(() => ({}));
@@ -6725,10 +6725,24 @@ function newExecution() {
   lastTestCaseExecutionData = null;
   lastTestCaseResult = null;
   testCaseCount = 0;
+  testcaseUiScreenshotFiles = [];
+  parsedTestCases = [];
+  selectedTestCaseIndices = [];
 
-  // Clear output panel
-  const outputContent = document.getElementById('output-content');
-  if (outputContent) outputContent.innerHTML = '';
+  // Clear output panels
+  ['output-content', 'details-content', 'logs-content', 'dashboard-content'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+
+  // Reset Stats Bar
+  const statsToReset = { 's-status': '-', 's-items': '-', 's-duration': '-', 'results-meta': '' };
+  Object.keys(statsToReset).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = statsToReset[id];
+  });
+  if (document.getElementById('s-items-bar')) document.getElementById('s-items-bar').style.width = '0%';
+  if (document.getElementById('s-duration-bar')) document.getElementById('s-duration-bar').style.width = '0%';
 
   // === Agent 1: Task Creation - clear inputs ===
   const excelFile = document.getElementById('excel-file');
@@ -6803,6 +6817,14 @@ function newExecution() {
   if (dashContent) dashContent.innerHTML = '';
   const dashTabBtn = document.getElementById('tab-btn-dashboard');
   if (dashTabBtn) dashTabBtn.style.display = 'none';
+
+  // === Agent 1: Task Creation - clear file inputs ===
+  const taskExcel = document.getElementById('excel-file');
+  if (taskExcel) taskExcel.value = '';
+  const taskExcelStatus = document.getElementById('excel-status');
+  if (taskExcelStatus) taskExcelStatus.textContent = '';
+  const taskSheetPicker = document.getElementById('excel-sheet-picker');
+  if (taskSheetPicker) taskSheetPicker.style.display = 'none';
 
   showPanel('panel-config');
   updateStepIndicator(2);
@@ -8492,8 +8514,12 @@ async function fetchDropdownData(type, endpoint) {
             if (type === 'members') bugAgentState.dropdowns.members = data.members || [];
             if (type === 'stories') bugAgentState.dropdowns.stories = data.work_items || [];
             addDebugLog(`✅ Loaded ${type} dropdown data`);
+        } else {
+            console.warn(`⚠️ Failed to load ${type} data:`, data.error || 'Unknown error');
+            addDebugLog(`⚠️ Failed to load ${type} data: ${data.error || 'Unknown error'}`);
         }
     } catch (e) {
+        console.error(`❌ Error fetching ${type} data:`, e.message);
         addDebugLog(`⚠️ Failed to fetch ${type} data: ${e.message}`);
     }
 }

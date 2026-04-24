@@ -30,17 +30,20 @@ def _pat_auth_header(pat: str) -> dict:
     return {"Authorization": f"Basic {token}"}
 
 
-def _get_auth(pat: str = ""):
+def _get_auth(pat: str = "", username: str = "", password: str = ""):
     """Return (auth_object_or_None, extra_headers) depending on available credentials."""
     effective_pat = pat or TFS_PAT
     if effective_pat:
         return None, _pat_auth_header(effective_pat)
 
     # Fall back to NTLM if requests_ntlm is available
+    effective_user = username or TFS_USERNAME
+    effective_pass = password or TFS_PASSWORD
+    
     try:
         from requests_ntlm import HttpNtlmAuth
-        if TFS_USERNAME and TFS_PASSWORD:
-            return HttpNtlmAuth(TFS_USERNAME, TFS_PASSWORD), {}
+        if effective_user and effective_pass:
+            return HttpNtlmAuth(effective_user, effective_pass), {}
     except ImportError:
         pass
 
@@ -213,10 +216,24 @@ def create_test_case(
     if extra_headers:
         headers.update(extra_headers)
 
+    auth_type = "None"
+    if auth:
+        auth_type = type(auth).__name__
+    elif "Authorization" in headers:
+        auth_type = "PAT (Basic)"
+
     print(f"[CREATE_TEST_CASE DEBUG] Creating: {title}", flush=True)
     print(f"[CREATE_TEST_CASE DEBUG] URL: {url}", flush=True)
+    print(f"[CREATE_TEST_CASE DEBUG] Auth Type: {auth_type}", flush=True)
     
-    response = requests.patch(url, json=payload, auth=auth, headers=headers, verify=False, timeout=30)
+    # Log a sanitized version of the payload for debugging
+    # print(f"[CREATE_TEST_CASE DEBUG] Payload: {json.dumps(payload, indent=2)}", flush=True)
+    
+    try:
+        response = requests.patch(url, json=payload, auth=auth, headers=headers, verify=False, timeout=30)
+    except Exception as e:
+        print(f"[CREATE_TEST_CASE DEBUG] Exception during request: {str(e)}", flush=True)
+        raise RuntimeError(f"Network error creating test case: {str(e)}")
 
     print(f"[CREATE_TEST_CASE DEBUG] Response status: {response.status_code}", flush=True)
     
@@ -372,6 +389,8 @@ def upload_test_cases(
     test_cases: list,
     suite_name: str = "",
     pat: str = "",
+    username: str = "",
+    password: str = "",
 ) -> list:
     """
     Upload a list of test case dicts to TFS and link them to work_item_id.
@@ -382,6 +401,8 @@ def upload_test_cases(
         work_item_id: TFS User Story ID to link test cases against.
         test_cases:   List of dicts with keys: title, step_action, expected_results
         pat:          Optional PAT override (uses .env TFS_PAT by default).
+        username:     Optional username override.
+        password:     Optional password override.
 
     Returns:
         List of created test case IDs.
@@ -396,7 +417,7 @@ def upload_test_cases(
         )
 
     collection_url, project, plan_id, suite_id = parse_tfs_url(link_to_use)
-    auth, extra_headers = _get_auth(pat)
+    auth, extra_headers = _get_auth(pat, username, password)
 
     created_ids = []
     failed = []

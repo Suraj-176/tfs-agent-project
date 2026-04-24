@@ -991,6 +991,36 @@ def extract_base_url_and_project(url_value: str):
     return None, None
 
 
+def get_current_user(base_url: str = None, username: str = None, password: str = None, pat: str = None) -> dict:
+    """Fetch current authenticated user details from TFS."""
+    url_base = _normalize_tfs_url_for_api(base_url or BASE_URL)
+    if not url_base:
+        return {"success": False, "error": "Missing TFS base URL"}
+
+    try:
+        # Try to get collection base for connectionData
+        collection_base, _ = _split_collection_and_project(url_base)
+        if not collection_base:
+            collection_base = url_base
+
+        url = f"{collection_base}/_apis/connectionData?api-version=6.0"
+        auth, headers = _get_auth_and_headers(username, password, pat)
+
+        response = requests.get(url, auth=auth, headers=headers, timeout=15)
+        if response.status_code == 200:
+            data = response.json()
+            authenticated_user = data.get("authenticatedUser", {})
+            return {
+                "success": True,
+                "id": authenticated_user.get("uniqueName") or authenticated_user.get("id"),
+                "display_name": authenticated_user.get("displayName"),
+                "email": authenticated_user.get("properties", {}).get("Mail", {}).get("$value") or ""
+            }
+        return {"success": False, "error": f"TFS returned status {response.status_code}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 def search_tfs_identities(name_query: str, base_url: str = None, pat: str = None, username: str = None, password: str = None) -> list[str]:
     """
     Search for TFS identities matching a name query using proper Identities API.
@@ -1004,10 +1034,15 @@ def search_tfs_identities(name_query: str, base_url: str = None, pat: str = None
 
     try:
         auth, headers = _get_auth_and_headers(username=username, password=password, pat=pat)
+        
+        # Use collection base for Identities API (it's collection-level only)
+        collection_base, _ = _split_collection_and_project(url_base)
+        if not collection_base:
+            collection_base = url_base
 
         # Use proper identity search API if possible
         # Format: /_apis/identities?searchFilter=general&filterValue={query}&api-version=6.0
-        search_url = f"{url_base}/_apis/identities?searchFilter=general&filterValue={requests.utils.quote(name_query)}&queryMembership=none&api-version=6.0"
+        search_url = f"{collection_base}/_apis/identities?searchFilter=general&filterValue={requests.utils.quote(name_query)}&queryMembership=none&api-version=6.0"
 
         response = requests.get(search_url, auth=auth, headers=headers, timeout=10)
 
@@ -1028,6 +1063,7 @@ def search_tfs_identities(name_query: str, base_url: str = None, pat: str = None
                 return identities[:15]
 
         # Fallback to WIQL if identity API fails
+        # For WIQL, project-scoped URL is fine
         wiql_url = f"{url_base}/_apis/wit/wiql?api-version=6.0"
         wiql_body = {
             "query": f"SELECT [System.Id], [System.AssignedTo] FROM WorkItems WHERE [System.AssignedTo] CONTAINS '{name_query}' ORDER BY [System.ChangedDate] DESC"
@@ -1038,8 +1074,10 @@ def search_tfs_identities(name_query: str, base_url: str = None, pat: str = None
             data = response.json()
             seen = set()
             matched = []
+            
+            # Use collection_base for individual work item fetches to be safe
             for workitem in data.get("workItems", [])[:50]:
-                item_url = f"{url_base}/_apis/wit/workitems/{workitem['id']}?fields=System.AssignedTo&api-version=6.0"
+                item_url = f"{collection_base}/_apis/wit/workitems/{workitem['id']}?fields=System.AssignedTo&api-version=6.0"
                 item_res = requests.get(item_url, auth=auth, headers=headers, timeout=5)
                 if item_res.status_code == 200:
                     user = item_res.json().get("fields", {}).get("System.AssignedTo")

@@ -13,9 +13,15 @@ $backendReqFile = Join-Path $scriptDir "requirements.txt"
 
 if (-not (Test-Path $venvPython)) {
     Write-Host "Setting up virtual environment (first time only)..." -ForegroundColor Yellow
-    & python -m venv .venv 2>&1 | Out-Null
+    # Try 'py' first (Python Launcher), then fall back to 'python'
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+        & py -m venv .venv 2>&1 | Out-Null
+    } else {
+        & python -m venv .venv 2>&1 | Out-Null
+    }
+    
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Failed to create virtual environment" -ForegroundColor Red
+        Write-Host "ERROR: Failed to create virtual environment. Ensure Python is installed." -ForegroundColor Red
         exit 1
     }
 }
@@ -28,10 +34,15 @@ $reqHash = (Get-FileHash $backendReqFile -Algorithm MD5).Hash
 
 if (-not (Test-Path $pipCachePath)) {
     Write-Host "[2/3] Installing dependencies (first time only)..." -ForegroundColor Yellow
-    $ErrorActionPreference = "Continue"
+    
     & $venvPython -m pip install --upgrade pip setuptools wheel
+    if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: Failed to upgrade pip" -ForegroundColor Red; exit 1 }
+    
     & $venvPython -m pip install -r $backendReqFile
-    $ErrorActionPreference = "Stop"
+    if ($LASTEXITCODE -ne 0) { 
+        Write-Host "ERROR: Failed to install dependencies. Check if you have enough disk space." -ForegroundColor Red
+        exit 1 
+    }
     
     $reqHash | Out-File -FilePath $pipCachePath -NoNewline
     Write-Host "[OK] Dependencies installed" -ForegroundColor Green
@@ -39,9 +50,9 @@ if (-not (Test-Path $pipCachePath)) {
     $cachedHash = Get-Content $pipCachePath -Raw
     if ($cachedHash -ne $reqHash) {
         Write-Host "[2/3] Updating changed dependencies..." -ForegroundColor Yellow
-        $ErrorActionPreference = "Continue"
         & $venvPython -m pip install -r $backendReqFile
-        $ErrorActionPreference = "Stop"
+        if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: Failed to update dependencies" -ForegroundColor Red; exit 1 }
+        
         $reqHash | Out-File -FilePath $pipCachePath -NoNewline
         Write-Host "[OK] Dependencies updated" -ForegroundColor Green
     } else {

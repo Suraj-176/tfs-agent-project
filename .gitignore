@@ -23,6 +23,7 @@ htmlcov/
 # Logs
 logs/*.log
 logs/*.log.*
+logs/iis_stdout*
 
 # Backup files
 *.bak

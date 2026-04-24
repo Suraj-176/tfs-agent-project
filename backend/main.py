@@ -38,7 +38,7 @@ log_file = log_dir / "backend.log"
 
 _log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 _file_handler = TimedRotatingFileHandler(
-    log_file, when="midnight", interval=1, backupCount=2, encoding="utf-8"
+    log_file, when="midnight", interval=1, backupCount=1, encoding="utf-8"
 )
 _file_handler.setFormatter(_log_formatter)
 _console_handler = logging.StreamHandler(sys.stderr)
@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 # ==================== Cleanup Utilities ====================
 
 def cleanup_old_files(retention_hours: int = 24):
-    """Delete files older than retention_hours from logs directory"""
+    """Delete files older than retention_hours from logs directory and its subdirectories"""
     try:
         logs_dir = Path(__file__).parent.parent / "logs"
         if not logs_dir.exists():
@@ -64,7 +64,23 @@ def cleanup_old_files(retention_hours: int = 24):
         retention_seconds = retention_hours * 3600
         deleted_count = 0
         
-        # Clean up screenshots
+        # 1. Clean up files directly in the logs directory (including iis_stdout, bug_process, etc.)
+        for file_path in logs_dir.iterdir():
+            if file_path.is_file():
+                # Skip the active log file
+                if file_path.name == "backend.log":
+                    continue
+                
+                file_age = now - file_path.stat().st_mtime
+                if file_age > retention_seconds:
+                    try:
+                        file_path.unlink()
+                        deleted_count += 1
+                        logger.debug(f"🗑️ Deleted old log file: {file_path.name}")
+                    except Exception as e:
+                        logger.warning(f"Could not delete {file_path}: {e}")
+
+        # 2. Clean up screenshots sub-folder
         screenshots_dir = logs_dir / "screenshots"
         if screenshots_dir.exists():
             for file_path in screenshots_dir.iterdir():
@@ -1517,7 +1533,11 @@ async def upload_test_cases(request: UploadTestCasesRequest):
 def _get_auth_from_tfs_config(tfs_config: TFSConfigRequest):
     """Helper function to extract auth details from TFS config."""
     from .tfs_upload import _get_auth
-    return _get_auth(tfs_config.pat_token or "")
+    return _get_auth(
+        pat=tfs_config.pat_token or "",
+        username=tfs_config.username or "",
+        password=tfs_config.password or ""
+    )
 
 
 @app.post("/api/agent/create-bug")
@@ -1967,7 +1987,7 @@ def extract_bug_report_sections(formatted_report: str) -> dict:
 async def search_team_members(request: dict):
     """Fetch real TFS team members with integrated search."""
     try:
-        from .tfs_tool import search_tfs_identities, BASE_URL, USERNAME, PASSWORD, PAT, _get_auth_and_headers
+        from .tfs_tool import search_tfs_identities, BASE_URL, USERNAME, PASSWORD, PAT, _get_auth_and_headers, _split_collection_and_project, get_current_user
         import requests
         
         search_query = request.get("search_query", "").strip()
@@ -1981,12 +2001,42 @@ async def search_team_members(request: dict):
         if not base_url:
             return {"success": False, "error": "TFS base URL not configured", "members": []}
             
+        collection_base, _ = _split_collection_and_project(base_url)
+        if not collection_base: collection_base = base_url
+
+        session = requests.Session()
+        auth, headers = _get_auth_and_headers(username=username, password=password, pat=pat)
+        session.auth = auth
+        session.headers.update(headers or {})
+
+        members = []
+        seen = set()
+
+        # 0. Add current user as the first option
+        try:
+            curr = get_current_user(base_url=base_url, username=username, password=password, pat=pat)
+            if curr.get("success"):
+                user_id = curr.get("id")
+                display_name = curr.get("display_name")
+                email = curr.get("email")
+                if user_id and user_id not in seen:
+                    seen.add(user_id)
+                    members.append({
+                        "id": user_id,
+                        "display_name": f"{display_name} (Me)",
+                        "email": email or f"{display_name.lower().replace(' ', '.')}@example.com"
+                    })
+        except Exception as e:
+            logger.debug(f"Failed to get current user: {e}")
+
         # 1. Use identity search if query exists
         if search_query and len(search_query) >= 2:
             identities = search_tfs_identities(name_query=search_query, base_url=base_url, pat=pat, username=username, password=password)
             if identities:
-                members = []
                 for id_str in identities:
+                    if id_str in seen: continue
+                    seen.add(id_str)
+                    
                     display_name = id_str
                     email = ""
                     if "<" in id_str and ">" in id_str:
@@ -2005,18 +2055,15 @@ async def search_team_members(request: dict):
 
         # 2. General fetching fallback (WIQL for recent users)
         try:
-            auth, headers = _get_auth_and_headers(username=username, password=password, pat=pat)
             wiql_url = f"{base_url.rstrip('/')}/_apis/wit/wiql?api-version=6.0"
             wiql_body = {"query": "SELECT [System.Id], [System.AssignedTo] FROM WorkItems WHERE [System.AssignedTo] <> '' ORDER BY [System.ChangedDate] DESC"}
             
-            response = requests.post(wiql_url, auth=auth, headers=headers, json=wiql_body, timeout=10)
-            members = []
+            response = session.post(wiql_url, json=wiql_body, timeout=10)
             if response.status_code == 200:
                 data = response.json()
-                seen = set()
                 for workitem in data.get("workItems", [])[:30]:
-                    item_url = f"{base_url.rstrip('/')}/_apis/wit/workitems/{workitem['id']}?fields=System.AssignedTo&api-version=6.0"
-                    item_res = requests.get(item_url, auth=auth, headers=headers, timeout=5)
+                    item_url = f"{collection_base}/_apis/wit/workitems/{workitem['id']}?fields=System.AssignedTo&api-version=6.0"
+                    item_res = session.get(item_url, timeout=5)
                     if item_res.status_code == 200:
                         user = item_res.json().get("fields", {}).get("System.AssignedTo")
                         if isinstance(user, dict): user = user.get("displayName")
@@ -2036,8 +2083,9 @@ async def search_team_members(request: dict):
             return {"success": True, "members": members}
         except Exception as e:
             logger.warning(f"Fallback search failed: {e}")
-            return {"success": True, "members": []}
+            return {"success": True, "members": members}
     except Exception as e:
+        logger.error(f"Error in search_team_members: {e}")
         return {"success": False, "error": str(e), "members": []}
 
 @app.post("/api/tfs/search-identities")
@@ -3539,23 +3587,32 @@ async def dashboard_generate(request: DashboardGenerateRequest):
         llm_config_dict = request.llm_config.dict() if request.llm_config else None
 
         from .agents.dashboard_agent import execute_dashboard_agent
-        result = execute_dashboard_agent(
-            project_url=project_url,
-            tfs_config=tfs.dict() if tfs else {},
-            bug_query_id=request.bug_query_id or "",
-            retest_query_id=request.retest_query_id or "",
-            story_query_id=request.story_query_id or "",
-            other_query_id=request.other_query_id or "",
-            vertical_excel_bytes=_b64_to_bytes(request.vertical_excel_b64),
-            automation_excel_bytes=_b64_to_bytes(request.automation_excel_b64),
-            performance_excel_bytes=_b64_to_bytes(request.performance_excel_b64),
-            mode=request.mode or "static",
-            llm_prompt=request.llm_prompt or "",
-            llm_config=llm_config_dict,
+        import asyncio
+        
+        logger.info(f"📥 Dashboard generate request received. "
+                    f"VT size: {len(request.vertical_excel_b64) if request.vertical_excel_b64 else 0}, "
+                    f"Auto size: {len(request.automation_excel_b64) if request.automation_excel_b64 else 0}, "
+                    f"Perf size: {len(request.performance_excel_b64) if request.performance_excel_b64 else 0}")
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            execute_dashboard_agent,
+            project_url,
+            tfs.dict() if tfs else {},
+            request.bug_query_id or "",
+            request.retest_query_id or "",
+            request.story_query_id or "",
+            request.other_query_id or "",
+            _b64_to_bytes(request.vertical_excel_b64),
+            _b64_to_bytes(request.automation_excel_b64),
+            _b64_to_bytes(request.performance_excel_b64),
+            request.mode or "static",
+            request.llm_prompt or "",
+            llm_config_dict,
         )
 
-        logger.info(f"Dashboard generated (mode={request.mode}): "
-                    f"bugs={result['summary']['bugs']}, stories={result['summary']['stories']}")
+        logger.info(f"✅ Dashboard generation completed (mode={request.mode})")
         return result
 
     except HTTPException:

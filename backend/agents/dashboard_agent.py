@@ -487,7 +487,6 @@ Keep the tone professional, authoritative, and focused on delivery excellence.""
 # ---------------------------------------------------------------------------
 
 def execute_dashboard_agent(
-    *,
     project_url: str,
     tfs_config: Dict,
     bug_query_id: str = "",
@@ -505,15 +504,22 @@ def execute_dashboard_agent(
     """
     Main entry point for Dashboard Agent.
     """
+    logger.info(f"🚀 Dashboard Agent execution started (mode={mode})")
+    logger.info(f"📊 Inputs: Queries(Bug={bug_query_id}, Retest={retest_query_id}, Story={story_query_id}, Other={other_query_id})")
+    logger.info(f"📂 Excel sizes: Vertical={len(vertical_excel_bytes) if vertical_excel_bytes else 0} bytes, "
+                f"Automation={len(automation_excel_bytes) if automation_excel_bytes else 0} bytes, "
+                f"Performance={len(performance_excel_bytes) if performance_excel_bytes else 0} bytes")
+
     pat = tfs_config.get("pat_token")
     user = tfs_config.get("username")
     pw = tfs_config.get("password")
 
     # ---- 1. Fetch work items ----------------------------------------
-    def _fetch(qid: str) -> List[Dict]:
+    def _fetch(qid: str, label: str) -> List[Dict]:
         if not qid:
             return []
-        return fetch_work_items_for_query(
+        logger.info(f"⏳ Fetching TFS work items for {label} (Query ID: {qid})...")
+        items = fetch_work_items_for_query(
             project_url=project_url, 
             pat=pat, 
             username=user, 
@@ -521,11 +527,13 @@ def execute_dashboard_agent(
             query_id=qid, 
             api_version=api_version
         )
+        logger.info(f"✅ Fetched {len(items)} items for {label}")
+        return items
 
-    bug_items    = _fetch(bug_query_id)
-    retest_items = _fetch(retest_query_id)
-    story_items  = _fetch(story_query_id)
-    other_items  = _fetch(other_query_id)
+    bug_items    = _fetch(bug_query_id, "Bugs")
+    retest_items = _fetch(retest_query_id, "Retesting")
+    story_items  = _fetch(story_query_id, "Stories")
+    other_items  = _fetch(other_query_id, "Other")
 
     # ---- 2. Summary ------------------------------------------------
     summary = {
@@ -535,6 +543,7 @@ def execute_dashboard_agent(
         "other":     len(other_items),
         "total":     len(bug_items) + len(retest_items) + len(story_items) + len(other_items),
     }
+    logger.info(f"📈 TFS Summary: {summary}")
 
     # ---- 3. State table --------------------------------------------
     state_rows = [
@@ -557,9 +566,24 @@ def execute_dashboard_agent(
     other_charts  = _category_charts(other_items)
 
     # ---- 6. Excel reports ------------------------------------------
-    vertical_report    = _parse_vertical_report(vertical_excel_bytes)    if vertical_excel_bytes    else None
-    automation_report  = _parse_automation_report(automation_excel_bytes) if automation_excel_bytes  else None
-    performance_report = _parse_performance_report(performance_excel_bytes) if performance_excel_bytes else None
+    logger.info("📄 Parsing Excel reports...")
+    vertical_report    = None
+    if vertical_excel_bytes:
+        logger.info("Parsing Vertical report...")
+        vertical_report = _parse_vertical_report(vertical_excel_bytes)
+        logger.info(f"Vertical report result: {'✅ Success' if vertical_report else '❌ Failed/Empty'}")
+
+    automation_report  = None
+    if automation_excel_bytes:
+        logger.info("Parsing Automation report...")
+        automation_report = _parse_automation_report(automation_excel_bytes)
+        logger.info(f"Automation report result: {'✅ Success' if automation_report else '❌ Failed/Empty'}")
+
+    performance_report = None
+    if performance_excel_bytes:
+        logger.info("Parsing Performance report...")
+        performance_report = _parse_performance_report(performance_excel_bytes)
+        logger.info(f"Performance report result: {'✅ Success' if performance_report else '❌ Failed/Empty'}")
 
     # ---- 7. Management cards ---------------------------------------
     mgmt_cards = _management_cards(summary, vertical_report, automation_report, performance_report)
