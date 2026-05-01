@@ -1423,6 +1423,22 @@ Task #1: [Title]
                 "status": "error",
                 "error": "Please provide: (1) Excel file for bulk, (2) task_description to CREATE, or (3) work_item_id to UPDATE",
             }
+
+    except Exception as e:
+        error_msg = str(e)
+        log_to_file(f"\n❌ execute_task_creation EXCEPTION: {error_msg}")
+        import traceback
+        log_to_file(traceback.format_exc())
+        return {
+            "status": "error",
+            "error": error_msg,
+            "summary": {"created": 0, "failed": 0, "updated": 0, "total": 0},
+            "created_ids": [],
+            "updated_ids": [],
+            "report_rows": [],
+            "errors": [error_msg],
+            "agent": "TFS Task Agent (Bulk)",
+        }
     
 def generate_task_excel_report(report_rows: List[Dict]) -> bytes:
     """
