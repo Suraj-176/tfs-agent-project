@@ -2630,9 +2630,8 @@ async def execute_tfs_task_bulk_upload(
         if temp_path:
             try:
                 os.remove(temp_path)
-            except Exception:
-                pass
-
+            except Exception as cleanup_err:
+                logger.warning(f"🧹 Cleanup: Could not delete temp file {temp_path}: {cleanup_err}")
 
 @app.post("/api/agent/execute/tfs-task/bulk-drive")
 async def execute_tfs_task_bulk_drive(request: DriveBulkTaskRequest):
@@ -2698,9 +2697,8 @@ async def execute_tfs_task_bulk_drive(request: DriveBulkTaskRequest):
         if temp_path:
             try:
                 os.remove(temp_path)
-            except Exception:
-                pass
-
+            except Exception as cleanup_err:
+                logger.warning(f"🧹 Cleanup: Could not delete temp file {temp_path}: {cleanup_err}")
 # ==================== Agent Endpoints ====================
 # Contains execution endpoints for all three agents plus background task handlers
 # Each agent section includes: endpoint + background task runner

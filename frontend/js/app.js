@@ -6728,7 +6728,10 @@ function newExecution() {
   parsedTestCases = [];
   selectedTestCaseIndices = [];
 
-  // Clear output panels
+  // === Clear Extracted Metadata ===
+  extractedTfsProject = null;
+  extractedTfsCollectionUrl = null;
+  addDebugLog('🧹 Extracted TFS metadata cleared');
   ['output-content', 'details-content', 'logs-content', 'dashboard-content'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = '';
@@ -6788,6 +6791,8 @@ function newExecution() {
   if (chatInput) chatInput.value = '';
 
   // Reset bugAgentState
+  bugTags = [];
+  selectedScreenshots = [];
   bugAgentState.updateMode = false;
   bugAgentState.currentScreenshots = [];
   bugAgentState.formScreenshots = [];

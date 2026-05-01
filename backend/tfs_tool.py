@@ -869,6 +869,8 @@ def resolve_tfs_identity(email: str, domain: str = "DGSL", base_url: str = None,
         try:
             matches = search_tfs_identities(email, base_url, pat, username, password)
             if matches:
+                if len(matches) > 1:
+                    logging.getLogger(__name__).warning(f"⚠️ Multiple identities found for '{email}': {matches}. Using first match: '{matches[0]}'")
                 # Returns the first (best) match from TFS, e.g. "Suraj Yadav <email>"
                 return matches[0]
         except:
@@ -967,13 +969,14 @@ def extract_base_url_and_project(url_value: str):
             return base_url, project
         elif sys_idx == len(parts) and len(parts) >= 2:
             # No system segment found — treat last part as project, rest as base
-            project = parts[-1]
-            base_url = f"{parsed.scheme}://{parsed.netloc}/" + "/".join(parts[:-1])
-            return base_url, project
+                project = parts[-1]
+                base_url = f"{parsed.scheme}://{parsed.netloc}/" + "/".join(parts[:-1])
+                return base_url, project
 
-    except Exception:
-        pass
-    return None, None
+            except Exception:
+            pass
+            return None, None
+
 
 
 def get_current_user(base_url: str = None, username: str = None, password: str = None, pat: str = None) -> dict:
@@ -1086,7 +1089,7 @@ def find_existing_task(
     username: str = None,
     password: str = None,
     domain: str = None,
-    project_name: str = "TruDocs"
+    project_name: str = None
 ) -> int:
     """
     Find existing task using WIQL query to prevent duplicates
@@ -1202,7 +1205,7 @@ def create_task(
     password: str = None,
     domain: str = None,
     validate_only: bool = False,
-    project_name: str = "TruDocs"
+    project_name: str = None
 ) -> requests.Response:
     """
     Create a TFS task with scheduling fields
@@ -1376,7 +1379,7 @@ def create_work_item(
     password: str = None,
     domain: str = None,
     validate_only: bool = False,
-    project_name: str = "TruDocs"
+    project_name: str = None
 ) -> requests.Response:
     """
     Generic function to create any TFS work item type (Bug, Feature, Task, etc.)
@@ -1601,7 +1604,7 @@ def update_task(
     username: str = None,
     password: str = None,
     domain: str = None,
-    project_name: str = "TruDocs",
+    project_name: str = None,
     related_work_item_id: int = None
 ) -> requests.Response:
     """
@@ -1739,7 +1742,7 @@ def create_bug(
     password: str = None,
     domain: str = None,
     validate_only: bool = False,
-    project_name: str = "TruDocs"
+    project_name: str = None
 ) -> requests.Response:
     """
     Create a TFS bug work item
@@ -2029,7 +2032,7 @@ def update_bug(
     username: str = None,
     password: str = None,
     domain: str = None,
-    project_name: str = "TruDocs",
+    project_name: str = None,
     related_work_item_id: int = None
 ) -> requests.Response:
     """
