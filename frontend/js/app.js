@@ -6207,10 +6207,14 @@ function renderExecutionResult(result, startedAtMs = null) {
   if (isTestCaseAgent) {
     metaText = `Test Cases Generated: ${itemCount} | Mode: ${(lastTestCaseExecutionData?.test_mode || 'functional').toUpperCase()} | Duration: ${durationSec}s`;
   } else {
-    metaText = `Total: ${total} | Created: ${itemCount} | Failed: ${failed} | Skipped: ${skipped} | Auth: ${authMode}`;
-    // Store task result for Excel export
     if (currentAgent === 'task-creation') {
+        const createdCount = summary.created || 0;
+        const updatedCount = summary.updated || 0;
+        metaText = `Total: ${total} | Created: ${createdCount} | Updated: ${updatedCount} | Failed: ${failed} | Skipped: ${skipped}`;
         lastTaskResult = result;
+    } else {
+        const itemCount = summary.created || summary.updated || 0;
+        metaText = `Total: ${total} | Created/Updated: ${itemCount} | Failed: ${failed} | Skipped: ${skipped} | Auth: ${authMode}`;
     }
   }
   if (resultsMeta) resultsMeta.textContent = metaText;
