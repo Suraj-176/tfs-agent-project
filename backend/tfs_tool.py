@@ -851,19 +851,7 @@ def to_tfs_date(value, end_of_day: bool = False) -> str:
 
 def resolve_tfs_identity(email: str, domain: str = "DGSL", base_url: str = None, pat: str = None, username: str = None, password: str = None) -> str:
     """
-    Convert email/name to TFS identity format.
-    If a partial name is provided, searches TFS for matching identities.
-    
-    Args:
-        email: Email address or name (e.g., "suraj.yadav@company.com", "Utkarsh", "Suraj")
-        domain: TFS domain (e.g., "DGSL")
-        base_url: TFS base URL for searching identities
-        pat: PAT token for TFS search
-        username: TFS username for TFS search
-        password: TFS password for TFS search
-        
-    Returns:
-        TFS identity in exact format that TFS recognizes (e.g., "Suraj Yadav <...>" or matched identity)
+    Resolve identity from name or email. Returns the most direct string to avoid TFS rejection.
     """
     if not email:
         return None
@@ -872,41 +860,22 @@ def resolve_tfs_identity(email: str, domain: str = "DGSL", base_url: str = None,
     if not email:
         return None
     
-    # If it's already a full email, return it as-is. TFS handles emails perfectly.
-    if "@" in email and "." in email:
+    # 1. If it already has a domain or is an email, keep it exactly as is.
+    if "\\" in email or ("@" in email and "." in email):
         return email
-    
-    # It's a name - try to search TFS for exact match first
-    name = email.strip()
-    
-    # Try to search TFS for identities that match this name
-    if base_url or pat or (username and password):
-        try:
-            matches = search_tfs_identities(name, base_url, pat, username, password)
-            if matches:
-                # Return the best match from TFS
-                # Prefer matches that contain the name more accurately
-                for match in matches:
-                    if name.lower() in match.lower():
-                        return match
-                return matches[0]
-        except Exception as e:
-            logging.getLogger(__name__).debug(f"Identity search error for '{name}': {e}")
-    
-    # Fallback: If it's a single word, maybe it's a username. 
-    # But if the user already got "unknown identity" with DOMAIN\name, 
-    # we should try just the name as-is (maybe it's a display name).
-    if "\\" in name:
-        return name
         
-    # Last resort fallback logic
-    # If we have a domain and the name is short, try domain\name
-    # Otherwise just return the name as-is.
-    if domain and " " not in name and len(name) < 20:
-        # We'll return the domain\name but if it fails, the user should use email.
-        return f"{domain}\\{name}"
-    
-    return name
+    # 2. Try to search TFS for a real identity match if we have credentials.
+    if base_url and (pat or (username and password)):
+        try:
+            matches = search_tfs_identities(email, base_url, pat, username, password)
+            if matches:
+                return matches[0] # Returns "Display Name <email>"
+        except:
+            pass
+            
+    # 3. Fallback: Return the name as-is. 
+    # TFS is usually better at resolving names than we are at guessing domain prefixes.
+    return email
 
 
 def extract_project_name(url_value: str) -> str:
