@@ -250,6 +250,11 @@ if css_path.exists():
     app.mount("/css", StaticFiles(directory=str(css_path)), name="css")
 if js_path.exists():
     app.mount("/js", StaticFiles(directory=str(js_path)), name="js")
+
+# Mount templates for direct download
+templates_dir = Path(__file__).parent.parent / "templates"
+if templates_dir.exists():
+    app.mount("/templates", StaticFiles(directory=str(templates_dir)), name="templates")
 # We don't mount the root as static to avoid shadowing the API routes
 
 # ==================== Startup & Shutdown ====================
