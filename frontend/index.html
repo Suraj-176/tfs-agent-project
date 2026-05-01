@@ -352,7 +352,7 @@
     </div>
 
     <div class="agent-grid" id="agent-grid-container">
-      <!-- Task Creation Agent -->
+      <!-- Agent 1 -->
       <div class="agent-card" onclick="selectAgent('task-creation', this)">
         <div class="agent-header">
           <span class="agent-icon">📋</span>
@@ -367,7 +367,7 @@
         </div>
       </div>
 
-      <!-- Test Case Agent -->
+      <!-- Agent 2 -->
       <div class="agent-card" onclick="selectAgent('test-case', this)">
         <div class="agent-header">
           <span class="agent-icon">🧪</span>
@@ -382,7 +382,7 @@
         </div>
       </div>
 
-      <!-- Bug, Feature & Story Creation Agent -->
+      <!-- Agent 4 -->
       <div class="agent-card" onclick="selectAgent('bug-creation', this)">
         <div class="agent-header">
           <span class="agent-icon">🐛 ✨ 📖</span>
@@ -397,14 +397,14 @@
         </div>
       </div>
 
-      <!-- Dashboard Agent -->
+      <!-- Agent 5 -->
       <div class="agent-card" onclick="selectAgent('dashboard', this)">
         <div class="agent-header">
           <span class="agent-icon">📊</span>
           <span class="agent-status" id="status-dashboard">Ready</span>
         </div>
         <div class="agent-name">Dashboard Agent</div>
-        <div class="agent-desc">Generate QA activity dashboard from TFS queries and Excel reports (Static or AI-powered)</div>
+        <div class="agent-desc">Generate QA activity dashboard from TFS queries and Excel reports</div>
         <div class="agent-features">
           <span class="feature-tag">TFS Queries</span>
           <span class="feature-tag">QA Metrics</span>
@@ -422,7 +422,6 @@
       <div>
         <div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">
           <div class="mapping-title" id="config-title">Step 2: Configure Agent</div>
-          <div id="config-description" style="font-size:0.7rem; color:#64748b; font-weight:400;">Enter the required parameters for the selected agent</div>
         </div>
       </div>
       <button class="btn-secondary" onclick="goBack()">← Back</button>
@@ -542,18 +541,35 @@
         <label style="font-size:0.95rem;font-weight:700;color:#0c4a6e;display:block;margin-bottom:8px;">
           📋 Step 1: Select Test Plan
         </label>
-        <p style="font-size:0.8rem;color:#0c4a6e;margin-bottom:10px;margin-top:0;">Plans auto-load after you save TFS configuration (they will appear below)</p>
-        <select 
-          id="plan-select" 
-          style="width:100%;padding:10px 12px;border:1px solid #7dd3fc;border-radius:6px;font-size:0.9rem;margin-bottom:8px;background:white;cursor:pointer;"
-          onchange="onPlanSelected()"
-        >
-          <option value="">-- Select a Plan --</option>
-        </select>
+        <p style="font-size:0.8rem;color:#0c4a6e;margin-bottom:10px;margin-top:0;">Plans auto-load after you save TFS configuration</p>
+        
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+          <select 
+            id="plan-select" 
+            style="flex:1;padding:10px 12px;border:1px solid #7dd3fc;border-radius:6px;font-size:0.9rem;background:white;cursor:pointer;"
+            onchange="onPlanSelected()"
+          >
+            <option value="">-- Select a Plan --</option>
+          </select>
+          <button
+            class="btn-secondary"
+            onclick="refreshTestPlans(true)"
+            style="padding:8px 12px; font-size:0.85rem; height:40px; display:flex; align-items:center; gap:6px; border-color:#7dd3fc; color:#0c4a6e;"
+          >
+            <span>🔍</span> Fetch
+          </button>
+          <button
+            id="plan-refresh-btn"
+            type="button"
+            onclick="refreshTestPlans(true)"
+            title="Refresh plans"
+            style="width:40px;height:40px;border:1px solid #7dd3fc;border-radius:6px;background:#ffffff;color:#0c4a6e;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;"
+          >↻</button>
+        </div>
         <div id="plan-status" style="font-size:0.85rem;color:#0c4a6e;margin:0;padding:4px 0;"></div>
       </div>
 
-      <!-- STEP 2: Suite Selector (highlights when plan selected) -->
+      <!-- STEP 2: Suite Selector -->
       <div id="suite-section" style="margin-bottom:16px;padding:12px;background:#f5f5f5;border:1px solid #d1d5db;border-radius:8px;opacity:0.6;">
         <label style="font-size:0.95rem;font-weight:700;color:#6b7280;display:block;margin-bottom:8px;">
           🎯 Step 2: Select Test Suite for Plan
@@ -569,17 +585,14 @@
           >
             <option value="">-- Select Test Suite --</option>
           </select>
-          <span id="suite-count" style="padding:8px 12px;background:#f0fdf4;color:#059669;border:1px solid #dcfce7;border-radius:6px;font-size:0.85rem;font-weight:600;white-space:nowrap;display:none;">✅ Suites loaded</span>
           <button
             id="suite-refresh-btn"
             type="button"
             onclick="refreshSelectedPlanSuites(true)"
             title="Refresh suites"
             style="width:32px;height:32px;border:1px solid #cbd5e1;border-radius:6px;background:#ffffff;color:#334155;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;"
-            aria-label="Refresh suites"
           >↻</button>
         </div>
-        
         <div id="suite-status" style="padding:8px 12px;border-radius:6px;font-size:0.85rem;display:none;"></div>
       </div>
 
@@ -589,77 +602,52 @@
       </div>
     </div>
 
-    <!-- Test Case Regenerate Section (Initially Hidden) -->
-    <!-- Test Case Analysis Chat Section -->
+    <!-- Agent 2 Modern Chat Section -->
     <div id="testcase-analysis-chat-section" style="display:none;padding:16px;border-top:1px solid #e2e8f0;background:#f8fafc;">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
-        <span style="font-size:0.9rem;font-weight:600;color:#0f172a;">💬 Test Case Analysis & Review</span>
-        <button onclick="reviewTestCases()" style="padding:6px 12px;background:#7c3aed;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:all 0.2s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">🔍 Review Test Cases</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-size:0.95rem;font-weight:700;color:#1e293b;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:1.1rem;">💬</span> Test Case Analysis & Review
+        </span>
+        <button onclick="reviewTestCases()" class="btn-primary" style="padding:6px 14px; background:#7c3aed; font-size:0.85rem; border-radius:8px;">
+          🔍 AI Deep Review
+        </button>
       </div>
 
       <!-- Chat Messages Container -->
-      <div id="testcase-chat-container" style="background:white;border:1px solid #cbd5e1;border-radius:8px;min-height:200px;max-height:400px;overflow-y:auto;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;">
-        <div style="text-align:center;color:#64748b;font-size:0.9rem;padding:20px;">
-          <div>💭 Start by asking questions about your test cases</div>
-          <div style="font-size:0.85rem;margin-top:8px;">Click "Review Test Cases" for AI analysis or type your own question</div>
+      <div id="testcase-chat-container" class="chat-messages" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; min-height:250px; max-height:400px; overflow-y:auto; padding:16px; margin-bottom:16px; display:flex; flex-direction:column; gap:12px; box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
+        <div style="text-align:center;color:#64748b;font-size:0.9rem;padding:30px;background:#f8fafc;border-radius:10px;border:1px dashed #e2e8f0;margin:auto;">
+          <div style="font-size:1.5rem;margin-bottom:10px;">🧠</div>
+          <div style="font-weight:600;color:#334155;">Ask anything about test case generation</div>
+          <div style="font-size:0.8rem;margin-top:8px;opacity:0.8;">"Are all requirements covered?" or "Add edge cases"</div>
         </div>
       </div>
 
-      <!-- Input Area with Inline Icons -->
-      <div style="display:flex;gap:8px;margin-bottom:12px;position:relative;">
-        <div style="flex:1;position:relative;">
+      <!-- Input Area -->
+      <div class="chat-input-area-modern" style="padding:0; background:transparent; border:none; box-shadow:none;">
+        <div class="chat-input-wrapper" style="background:white; border:1.5px solid #e2e8f0; box-shadow:var(--shadow-sm); display:flex; gap:8px; padding:8px; border-radius:8px;">
           <textarea 
             id="testcase-chat-input" 
-            placeholder="Ask: 'Did we cover everything as per user story?' or 'What are missing edge cases?'"
-            style="flex:1;width:100%;min-height:60px;padding:10px 80px 10px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.9rem;font-family:inherit;resize:vertical;box-sizing:border-box;"
+            placeholder="Ask anything about the generated test cases..."
+            style="flex:1; border:none; outline:none; resize:none; min-height:40px; font-size:0.9rem;"
             onkeydown="handleChatInputKeydown(event)"
           ></textarea>
-          <!-- Send Icon Button -->
-          <button onclick="sendTestCaseQuestion()" style="position:absolute;right:50px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:22px;cursor:pointer;color:#0f766e;opacity:0.6;transition:opacity 0.2s;padding:4px;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Send (Enter)">📤</button>
-          <!-- Clear Icon Button -->
-          <button onclick="clearChatInput()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:22px;cursor:pointer;color:#dc2626;opacity:0.6;transition:opacity 0.2s;padding:4px;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'" title="Clear">✕</button>
+          <button onclick="sendTestCaseQuestion()" class="chat-send-btn" title="Send (Enter)" style="background:#0f766e; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
         </div>
       </div>
 
-      <!-- Action Buttons -->
-      <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;">
-        <button onclick="showTestCaseUploadUI()" style="padding:8px 14px;background:#0f766e;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.9rem;font-weight:600;">📤 Upload to Suite</button>
+      <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:16px;">
+        <button onclick="showTestCaseUploadUI()" class="btn-primary" style="padding:10px 18px;background:#0f766e;color:white;border:none;border-radius:10px;cursor:pointer;font-size:0.9rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+          <span>📤</span> Upload to TFS Suite
+        </button>
       </div>
     </div>
   </div>
 
 </main>
 
-<!-- Debug log panel — hidden by default, toggled by user -->
-<div id="debug-panel" style="display:none;position:fixed;bottom:48px;left:0;right:0;
-  background:#111827;border-top:2px solid #374151;z-index:998;box-shadow:0 -4px 20px rgba(0,0,0,0.3)">
-  <div style="padding:7px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #374151;">
-    <span style="font-size:11px;font-family:monospace;color:#9ca3af;font-weight:600;">🔍 Activity Log</span>
-    <div style="display:flex;gap:8px">
-      <button onclick="document.getElementById('debug-log').innerHTML='';document.getElementById('debug-error-count').textContent='0';"
-        style="font-size:10px;background:#374151;border:none;color:#9ca3af;padding:3px 10px;border-radius:4px;cursor:pointer;">Clear</button>
-      <button onclick="toggleDebugPanel()"
-        style="font-size:10px;background:#374151;border:none;color:#9ca3af;padding:3px 10px;border-radius:4px;cursor:pointer;">✕ Close</button>
-    </div>
-  </div>
-  <div id="debug-log" style="height:180px;overflow-y:auto;padding:8px 16px;font-family:monospace;font-size:12px;color:#e5e7eb;background:#111827;line-height:1.5;white-space:pre-wrap;word-wrap:break-word;"></div>
-</div>
-
-<!-- Floating debug toggle button — bottom right corner -->
-<div id="debug-toggle-btn" onclick="toggleDebugPanel()"
-  style="position:fixed;bottom:14px;right:20px;z-index:999;
-         background:#1f2937;border:1px solid #374151;border-radius:20px;
-         padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;
-         font-family:monospace;font-size:11px;color:#9ca3af;
-         box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:all 0.15s;">
-  <span style="width:7px;height:7px;border-radius:50%;background:#6b7280;flex-shrink:0" id="debug-dot"></span>
-  <span>Activity Log</span>
-  <span id="debug-error-count" style="display:none;background:#ef4444;color:white;border-radius:10px;padding:1px 6px;font-size:10px">0</span>
-</div>
-
-<div style="height:20px"></div>
-<!-- User Guide / Documentation Modal -->
-<!-- Synced with USER_GUIDE.md -->
+<!-- User Guide Modal -->
 <style>
   .guidev2-shell { max-width: 1160px; width: min(1160px, 96vw); height: min(88vh, 820px); margin-top: 42px; display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 60px rgba(2, 6, 23, 0.28); font-family: 'Segoe UI', 'Inter', Roboto, Arial, sans-serif; }
   .guidev2-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #e2e8f0; background: #ffffff; }
@@ -668,7 +656,7 @@
   .guidev2-xbtn { background:#f8fafc; border:1px solid #cbd5e1; color:#0f172a; border-radius:8px; width:30px; height:30px; cursor:pointer; font-weight:700; font-size:0.92rem; line-height:1; display:flex; align-items:center; justify-content:center; }
   .guidev2-xbtn:hover { background:#eef2f7; }
   .guidev2-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 290px 1fr; background: #f8fafc; }
-  .guidev2-side { border-right: 1px solid #e2e8f0; background: #ffffff; display: flex; flex-direction: column; min-height: 0; }
+  .guidev2-side { border-right: 1px solid #e2e8f0; background: #ffffff; display: flex; flex-direction: column; min-height: 0; }      
   .guidev2-brand { padding: 16px 18px 10px; border-bottom: 1px solid #f1f5f9; }
   .guidev2-brand h3 { margin: 0; font-size: 1.05rem; color: #0f766e; }
   .guidev2-brand p { margin: 4px 0 0; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
@@ -723,7 +711,7 @@
           <div class="guidev2-label">Start Here</div>
           <div class="doc-nav-link help-nav-item guidev2-nav active" onclick="switchHelpTab('setup', this)">
             <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/></svg>
-            Quick Start
+            Quick Start Guide
           </div>
           <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('connectivity', this)">
             <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
@@ -735,23 +723,23 @@
           <div class="guidev2-label">Agent Guides</div>
           <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('agent1', this)">
             <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
-            Agent 1 Task Creation
+            Agent 1: Task Creator
           </div>
           <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('agent2', this)">
             <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v5l-4 7a4 4 0 0 0 3.5 6h5a4 4 0 0 0 3.5-6l-4-7V3"/><path d="M8 14h8"/></svg>
-            Agent 2 Test Case Generator
+            Agent 2: Test Generator
           </div>
           <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('agent3', this)">
             <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            Agent 3 Self-Healing Engine
+            Agent 3: Self-Healing
           </div>
           <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('agent4', this)">
-            <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4v6c0 5-3.4 7.7-8 8-4.6-.3-8-3-8-8V7l8-4Z"/><path d="m9.5 12 1.8 1.8L14.8 10"/></svg>
-            Agent 4 Bug, Feature & User Story
+            <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4v6c0 5-3.4 7.7-8 8-4.6-.3-8-3-8-8V7l8-4Z"/><path d="m9.5 12 1.8 1.8L14.8 10"/></svg>   
+            Agent 4: Bug & Story
           </div>
           <div class="doc-nav-link help-nav-item guidev2-nav" onclick="switchHelpTab('agent5', this)">
             <svg class="guidev2-nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><rect x="7" y="11" width="3" height="6"/><rect x="12" y="8" width="3" height="9"/><rect x="17" y="6" width="3" height="11"/></svg>
-            Agent 5 Dashboard
+            Agent 5: Metrics Dash
           </div>
         </div>
 
@@ -762,50 +750,28 @@
       </aside>
 
       <section class="guidev2-main">
-        <div class="guidev2-breadcrumb"><span>TFS Agent Hub</span><span>&gt;</span><span id="breadcrumb-current" style="font-weight:700;color:#0f766e;">Quick Start</span></div>
+        <div class="guidev2-breadcrumb"><span>TFS Agent Hub</span><span>&gt;</span><span id="breadcrumb-current" style="font-weight:700;color:#0f766e;">Quick Start Guide</span></div>
         <div class="guidev2-scroll">
           <div id="htab-setup" class="help-content-section guidev2-section">
-            <h1>How the platform works</h1>
-            <p class="sub">Every agent follows the same 4 stage flow, so anyone can learn it once and use all agents.</p>
+            <h1 style="margin-top:0;">Getting Started</h1>
+            <p style="color:#64748b; font-size:1rem; margin-bottom:24px;">Follow these steps to connect your TFS project and start automating your workflow.</p>
             <div class="guidev2-card">
-              <h3>Before you execute</h3>
-              <ol class="guidev2-list">
-                <li>Save TFS Server configuration successfully.</li>
-                <li>Save AI Provider configuration successfully.</li>
-                <li>Use one small sample first to validate output format.</li>
-              </ol>
-            </div>
-            <div class="guidev2-grid" style="margin-bottom:12px;">
-              <div class="guidev2-step"><strong>Step 1: Select Agent</strong><br>Pick the agent based on your goal.</div>
-              <div class="guidev2-step"><strong>Step 2: Configure</strong><br>Fill required inputs shown in the form.</div>
-              <div class="guidev2-step"><strong>Step 3: Execute</strong><br>Click <span class="guidev2-kbd">Execute Agent</span>.</div>
-              <div class="guidev2-step"><strong>Step 4: Review</strong><br>Check output, logs, and export or upload when available.</div>
+              <h3 style="margin-top:0;">1. Connect to TFS</h3>
+              <p>Click the <strong>TFS Server</strong> icon in the header. Enter your server URLs and your credentials (NTLM or PAT).</p>
             </div>
             <div class="guidev2-card">
-              <h3>For non technical users</h3>
-              <ol class="guidev2-list">
-                <li>Use default values first.</li>
-                <li>If you see an error, open the Logs tab and share the message.</li>
-                <li>Start with one story or one file before running bulk data.</li>
-              </ol>
-            </div>
-            <div class="guidev2-card">
-              <h3>For technical users</h3>
-              <ol class="guidev2-list">
-                <li>Validate TFS and provider connections before execution.</li>
-                <li>Use fetched story details and prompt overrides only when needed.</li>
-                <li>Use output and logs together for root cause analysis.</li>
-              </ol>
+              <h3>2. Configure AI</h3>
+              <p>Click the <strong>Azure OpenAI</strong> icon. Add your API key and deployment details to enable the reasoning engine.</p>
             </div>
           </div>
 
           <div id="htab-connectivity" class="help-content-section guidev2-section" style="display:none;">
-            <h1>Setup checklist</h1>
+            <h1>Setup Checklist</h1>
             <p class="sub">Complete both setup windows from the top header before using any agent.</p>
             <div class="guidev2-card">
               <h3>1) TFS Server</h3>
               <ol class="guidev2-list">
-                <li>Open <span class="guidev2-kbd">TFS Server</span>.</li>
+                <li>Open <strong>TFS Server</strong> modal.</li>
                 <li>Fill Base URL, Task URL, and Test Plan URL.</li>
                 <li>Use either Username/Password or PAT token.</li>
                 <li>Click Test Connection, then Save.</li>
@@ -814,157 +780,66 @@
             <div class="guidev2-card">
               <h3>2) AI Provider</h3>
               <ol class="guidev2-list">
-                <li>Open <span class="guidev2-kbd">AI Provider</span>.</li>
+                <li>Open <strong>AI Provider</strong> modal.</li>
                 <li>Select provider and add API key.</li>
                 <li>For Azure: also fill Endpoint, Deployment, and API Version.</li>
                 <li>Click Test, then Save.</li>
               </ol>
             </div>
-            <div class="guidev2-card">
-              <h3>If something fails</h3>
-              <ol class="guidev2-list">
-                <li>Re-open TFS and AI modals and test again.</li>
-                <li>Check required fields are not blank.</li>
-                <li>Run the agent and inspect the Logs tab for exact error.</li>
-              </ol>
-            </div>
           </div>
 
           <div id="htab-agent1" class="help-content-section guidev2-section" style="display:none;">
-            <h1>Agent 1: TFS Task Agent</h1>
-            <p class="sub">Creates or updates tasks using Excel, OneDrive, or Google Drive input.</p>
+            <h1>Agent 1: Task Creator</h1>
             <div class="guidev2-card">
-              <h3>Bulk Excel Format</h3>
-              <ul class="guidev2-list">
-                <li><strong>Reference Template:</strong> See <code>templates/agent1_bulk_template.csv</code> in the repo.</li>
-                <li><strong>Standard Table:</strong> Header row with <code>Date</code>, <code>Task</code>, <code>Assigned To</code>, <code>Hours</code>.</li>
-                <li><strong>Update Mode:</strong> Include a <code>TaskID</code> or <code>BugID</code> column to update existing items.</li>
-                <li><strong>Dual-Header:</strong> Place an <code>Employee Name</code> row above the header row for grouped assignments.</li>
-                <li><strong>Smart Mapping:</strong> Supports flexible names like "Time" for Hours, "Title" for Task, etc.</li>
-              </ul>
-            </div>
-            <div class="guidev2-card">
-              <h3>Inputs & Setup</h3>
-              <ul class="guidev2-list">
-                <li><strong>Bulk Mode:</strong> Create (new items) or Update (existing IDs).</li>
-                <li><strong>Iteration Path:</strong> Required for correct sprint placement.</li>
-                <li><strong>Source:</strong> Local file upload, OneDrive, or Google Drive link.</li>
-              </ul>
+              <h3>How to use</h3>
+              <ol class="guidev2-list">
+                <li>Upload your project Excel or CSV file.</li>
+                <li>Select the Iteration Path (Sprint) from the dropdown.</li>
+                <li>Execute to create or update tasks in bulk.</li>
+              </ol>
             </div>
           </div>
 
           <div id="htab-agent2" class="help-content-section guidev2-section" style="display:none;">
-            <h1>Agent 2: Test Case Generator</h1>
-            <p class="sub">Generates functional or UI test cases from a story and supports refinement using review chat.</p>
+            <h1>Agent 2: Test Generator</h1>
             <div class="guidev2-card">
-              <h3>Inputs</h3>
+              <h3>Process</h3>
               <ul class="guidev2-list">
-                <li>User Story ID (recommended) or manual story text</li>
-                <li>SOP text (editable)</li>
-                <li>Mode: Functional, UI, or Both</li>
-                <li>Optional UI screenshots</li>
-              </ul>
-            </div>
-            <div class="guidev2-card">
-              <h3>Step by step</h3>
-              <ol class="guidev2-list">
-                <li>Select Agent 2.</li>
-                <li>Enter story ID and click Fetch.</li>
-                <li>Set test mode and optional screenshots.</li>
-                <li>Execute and review generated table.</li>
-                <li>Use analysis chat to ask for gaps or edge cases.</li>
-                <li>Upload selected test cases to suite when ready.</li>
-              </ol>
-            </div>
-            <div class="guidev2-card">
-              <h3>Output you should see</h3>
-              <ul class="guidev2-list">
-                <li>Structured test cases with clear steps and expected result.</li>
-                <li>Optional additional cases from review chat.</li>
+                <li><strong>Input:</strong> Enter a User Story ID to fetch requirements automatically.</li>
+                <li><strong>Refine:</strong> Use the built-in AI chat to add edge cases or missing requirements.</li>
+                <li><strong>Upload:</strong> Select a Test Plan and Suite to upload the final cases directly to TFS.</li>
               </ul>
             </div>
           </div>
 
           <div id="htab-agent3" class="help-content-section guidev2-section" style="display:none;">
-            <h1>Agent 3: Self-Healing Engine</h1>
-            <p class="sub">Autonomous system that reviews and repairs agent outputs to ensure zero-error results across the platform.</p>
+            <h1>Agent 3: Self-Healing</h1>
             <div class="guidev2-card">
-              <h3>Global Capabilities</h3>
-              <ul class="guidev2-list">
-                <li><strong>Agent 1 Support:</strong> Validates task descriptions and mandatory TFS fields for Tasking Agent.</li>
-                <li><strong>Agent 2 Support:</strong> Fixes malformed Markdown tables for perfectly formatted Test Case grids.</li>
-                <li><strong>Agent 4 Support:</strong> Sanity-checks reproduction steps and triage fields for Bug & Feature Agent.</li>
-              </ul>
-            </div>
-            <div class="guidev2-card">
-              <h3>Intelligent Repair Process</h3>
-              <ol class="guidev2-list">
-                <li><strong>Autonomous Correction:</strong> Instantly detects missing columns or formatting errors.</li>
-                <li><strong>Format Enforcement:</strong> Enforces professional TFS standards for all work item types.</li>
-                <li><strong>Zero-Intervention:</strong> Repairs happen silently in the background before you see the result.</li>
-              </ol>
+              <p>This agent runs in the background. It detects if an agent produced a malformed table or missing data and automatically repairs it before showing you the result.</p>
             </div>
           </div>
 
           <div id="htab-agent4" class="help-content-section guidev2-section" style="display:none;">
-            <h1>Agent 4: Bug, Feature & User Story</h1>
-            <p class="sub">Converts raw issue notes or requirements into structured TFS work items.</p>
+            <h1>Agent 4: Bug & Story</h1>
             <div class="guidev2-card">
-              <h3>Inputs</h3>
-              <ul class="guidev2-list">
-                <li><strong>Mode:</strong> Select Bug, Feature, or User Story.</li>
-                <li><strong>Description:</strong> Paste raw notes, logs, or requirements in chat.</li>
-                <li><strong>Screenshots:</strong> Upload images for automatic detail extraction.</li>
-                <li><strong>Triage:</strong> Area, Iteration, Severity, Priority, Tags, Assignee.</li>
-              </ul>
-            </div>
-            <div class="guidev2-card">
-              <h3>Step by step</h3>
-              <ol class="guidev2-list">
-                <li>Select Agent 4 and choose work item type.</li>
-                <li>Describe the item in chat (e.g., "Login button overlaps on mobile").</li>
-                <li>Review auto-filled fields on the right.</li>
-                <li>Adjust triage fields as needed.</li>
-                <li>Execute to create or update in TFS.</li>
-              </ol>
+              <h3>Usage</h3>
+              <p>Paste logs, raw notes, or describe an issue in the chat. The agent will structure the title, description, and triage fields automatically for creation in TFS.</p>
             </div>
           </div>
 
           <div id="htab-agent5" class="help-content-section guidev2-section" style="display:none;">
-            <h1>Agent 5: Dashboard</h1>
-            <p class="sub">Builds QA metrics dashboard using TFS queries and optional Excel inputs.</p>
+            <h1>Agent 5: Metrics Dash</h1>
             <div class="guidev2-card">
-              <h3>Inputs</h3>
-              <ul class="guidev2-list">
-                <li>Query IDs or URLs: Bug, Retesting, Story, Other</li>
-                <li>Optional Excel files for validation or automation</li>
-                <li>Mode: Static or AI</li>
-              </ul>
-            </div>
-            <div class="guidev2-card">
-              <h3>Step by step</h3>
-              <ol class="guidev2-list">
-                <li>Select Agent 5.</li>
-                <li>Enter queries and optional files.</li>
-                <li>Choose Static or AI mode.</li>
-                <li>Execute and open Dashboard tab.</li>
-                <li>Download as PDF or image for sharing.</li>
-              </ol>
-            </div>
-            <div class="guidev2-card">
-              <h3>Output you should see</h3>
-              <ul class="guidev2-list">
-                <li>Dashboard charts and counts in Dashboard tab.</li>
-                <li>AI summary narrative when AI mode is selected.</li>
-              </ul>
+              <h3>Real-time Metrics</h3>
+              <p>Provide your shared query IDs. The agent fetches current counts, status distributions, and trends to build a visual reporting board.</p>
             </div>
           </div>
         </div>
       </section>
     </div>
 
-    <div class="guidev2-foot">
-      <button class="btn-primary" onclick="closeGuideModal()">Got it, let's go!</button>
+    <div class="guidev2-foot" style="padding:16px; border-top:1px solid #f1f5f9; display:flex; justify-content:flex-end; background:#f8fafc;">
+      <button class="btn-primary" onclick="closeGuideModal()" style="padding:10px 24px;">Got it, let's go!</button>
     </div>
   </div>
 </div>
