@@ -237,65 +237,6 @@ frontend_path = Path(__file__).parent.parent / "frontend"
 css_path = frontend_path / "css"
 js_path = frontend_path / "js"
 
-@app.get("/", include_in_schema=False)
-async def serve_index():
-    """Serve the main frontend page at the root URL."""
-    index_file = frontend_path / "index.html"
-    if index_file.exists():
-        return FileResponse(index_file)
-    return JSONResponse(status_code=404, content={"message": "Frontend index.html not found"})
-
-# Mount static files
-if css_path.exists():
-    app.mount("/css", StaticFiles(directory=str(css_path)), name="css")
-if js_path.exists():
-    app.mount("/js", StaticFiles(directory=str(js_path)), name="js")
-
-# Mount templates for direct download
-templates_dir = Path(__file__).parent.parent / "templates"
-if templates_dir.exists():
-    app.mount("/templates", StaticFiles(directory=str(templates_dir)), name="templates")
-# We don't mount the root as static to avoid shadowing the API routes
-
-@app.post("/api/agent/tfs-task/download-excel")
-async def download_task_result_excel(request: ExcelDownloadRequest):
-    """Generate and return an Excel file from task report rows."""
-    try:
-        from .agents.tfs_task_agent import generate_task_excel_report
-        
-        excel_bytes = generate_task_excel_report(request.report_rows)
-        
-        filename = request.filename or "tfs_tasks_report.xlsx"
-        if not filename.endswith(".xlsx"):
-            filename += ".xlsx"
-            
-        return Response(
-            content=excel_bytes,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-    except Exception as e:
-        logger.error(f"Error generating Excel: {e}")
-        return JSONResponse(status_code=500, content={"message": f"Error generating Excel: {str(e)}"})
-
-# ==================== Startup & Shutdown ====================
-
-@app.on_event("startup")
-async def startup_event():
-    """Run cleanup and schedule periodic cleanup on app startup"""
-    logger.info("🚀 Application starting...")
-    # Clean up old files immediately on startup
-    cleanup_old_files(retention_hours=24)
-    # Schedule periodic cleanup
-    schedule_cleanup()
-    logger.info("✅ Cleanup scheduler initialized")
-
-# Store for execution tracking (session-based, in-memory)
-execution_history: Dict[str, List[Dict]] = {}
-active_executions: Dict[str, Dict] = {}
-oauth_device_sessions: Dict[str, Dict] = {}
-chat_states: Dict[str, Dict] = {}
-
 # ==================== Models ====================
 
 class LLMConfigRequest(BaseModel):
@@ -429,6 +370,67 @@ class DashboardGenerateRequest(BaseModel):
     performance_excel_b64: Optional[str] = None
     mode: Optional[str] = "static"      # "static" or "ai"
     llm_prompt: Optional[str] = ""
+
+# ==================== Routes & Initialization ====================
+
+@app.get("/", include_in_schema=False)
+async def serve_index():
+    """Serve the main frontend page at the root URL."""
+    index_file = frontend_path / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    return JSONResponse(status_code=404, content={"message": "Frontend index.html not found"})
+
+# Mount static files
+if css_path.exists():
+    app.mount("/css", StaticFiles(directory=str(css_path)), name="css")
+if js_path.exists():
+    app.mount("/js", StaticFiles(directory=str(js_path)), name="js")
+
+# Mount templates for direct download
+templates_dir = Path(__file__).parent.parent / "templates"
+if templates_dir.exists():
+    app.mount("/templates", StaticFiles(directory=str(templates_dir)), name="templates")
+# We don't mount the root as static to avoid shadowing the API routes
+
+@app.post("/api/agent/tfs-task/download-excel")
+async def download_task_result_excel(request: ExcelDownloadRequest):
+    """Generate and return an Excel file from task report rows."""
+    try:
+        from .agents.tfs_task_agent import generate_task_excel_report
+        
+        excel_bytes = generate_task_excel_report(request.report_rows)
+        
+        filename = request.filename or "tfs_tasks_report.xlsx"
+        if not filename.endswith(".xlsx"):
+            filename += ".xlsx"
+            
+        return Response(
+            content=excel_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Error generating Excel: {e}")
+        return JSONResponse(status_code=500, content={"message": f"Error generating Excel: {str(e)}"})
+
+# ==================== Startup & Shutdown ====================
+
+@app.on_event("startup")
+async def startup_event():
+    """Run cleanup and schedule periodic cleanup on app startup"""
+    logger.info("🚀 Application starting...")
+    # Clean up old files immediately on startup
+    cleanup_old_files(retention_hours=24)
+    # Schedule periodic cleanup
+    schedule_cleanup()
+    logger.info("✅ Cleanup scheduler initialized")
+
+# Store for execution tracking (session-based, in-memory)
+execution_history: Dict[str, List[Dict]] = {}
+active_executions: Dict[str, Dict] = {}
+oauth_device_sessions: Dict[str, Dict] = {}
+chat_states: Dict[str, Dict] = {}
 
 
 def _is_probable_csv(file_bytes: bytes) -> bool:
