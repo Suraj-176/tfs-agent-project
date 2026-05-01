@@ -75,6 +75,7 @@ let testcaseUiScreenshotFiles = [];
 // Test case execution context for regeneration
 let lastTestCaseExecutionData = null;
 let lastTestCaseResult = null;
+let lastTaskResult = null; // Store last task creation result for Excel export
 let testCaseCount = 0;
 
 // Extracted TFS project and collection info (from test plan URL)
@@ -6039,8 +6040,9 @@ Other    : ${s.other ?? '—'}
       formData.append('tfs_username', (tfs.username || '').trim());
       formData.append('tfs_password', (tfs.password || '').trim());
       formData.append('tfs_pat_token', (tfs.pat_token || '').trim());
+      formData.append('mode', bulkMode); // Added mode
 
-      setProgress(60, 'Creating tasks from uploaded Excel...');
+      setProgress(60, `Creating tasks from uploaded Excel (${bulkMode})...`);
       const response = await fetchWithTimeout(`${API_BASE}/agent/execute/tfs-task/bulk-upload`, {
         method: 'POST',
         body: formData
@@ -6206,6 +6208,10 @@ function renderExecutionResult(result, startedAtMs = null) {
     metaText = `Test Cases Generated: ${itemCount} | Mode: ${(lastTestCaseExecutionData?.test_mode || 'functional').toUpperCase()} | Duration: ${durationSec}s`;
   } else {
     metaText = `Total: ${total} | Created: ${itemCount} | Failed: ${failed} | Skipped: ${skipped} | Auth: ${authMode}`;
+    // Store task result for Excel export
+    if (currentAgent === 'task-creation') {
+        lastTaskResult = result;
+    }
   }
   if (resultsMeta) resultsMeta.textContent = metaText;
 
@@ -6835,12 +6841,16 @@ function newExecution() {
 
 function exportResults() {
   const isTestCaseAgent = currentAgent === 'test-case' && testCaseCount > 0;
-  
+  const isTaskAgent = currentAgent === 'task-creation' && lastTaskResult && lastTaskResult.report_rows && lastTaskResult.report_rows.length > 0;
+
   if (isTestCaseAgent) {
     // Export test cases as Excel
     exportTestCasesAsExcel();
+  } else if (isTaskAgent) {
+    // Export task creation results as Excel
+    exportTasksAsExcel();
   } else {
-    // Export task creation results as text
+    // Export other results as text
     console.log('Exporting results...');
     addDebugLog('⬇️ Exporting results to file');
     const output = document.getElementById('output-content');
@@ -6855,6 +6865,42 @@ function exportResults() {
   }
 }
 
+async function exportTasksAsExcel() {
+  if (!lastTaskResult || !lastTaskResult.report_rows) {
+    showToast('No task results to export', 'error');
+    return;
+  }
+
+  showToast('Generating Tasks Excel...', 'info');
+  addDebugLog('⬇️ Generating Tasks Excel result file');
+
+  try {
+    const response = await fetch(`${API_BASE}/agent/tfs-task/download-excel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        report_rows: lastTaskResult.report_rows,
+        filename: `TFS_Tasks_Execution_${new Date().toISOString().split('T')[0]}.xlsx`
+      })
+    });
+
+    if (!response.ok) throw new Error('Failed to generate Excel');
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `TFS_Tasks_Execution_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Tasks Excel downloaded!', 'success');
+  } catch (err) {
+    console.error('Excel Export Error:', err);
+    showToast('Failed to export Excel report', 'error');
+  }
+}
 function exportTestCasesAsExcel() {
   /**
    * Export parsed test cases as Excel format

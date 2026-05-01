@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, UploadFile, File, Form, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -257,6 +257,27 @@ if templates_dir.exists():
     app.mount("/templates", StaticFiles(directory=str(templates_dir)), name="templates")
 # We don't mount the root as static to avoid shadowing the API routes
 
+@app.post("/api/agent/tfs-task/download-excel")
+async def download_task_result_excel(request: ExcelDownloadRequest):
+    """Generate and return an Excel file from task report rows."""
+    try:
+        from .agents.tfs_task_agent import generate_task_excel_report
+        
+        excel_bytes = generate_task_excel_report(request.report_rows)
+        
+        filename = request.filename or "tfs_tasks_report.xlsx"
+        if not filename.endswith(".xlsx"):
+            filename += ".xlsx"
+            
+        return Response(
+            content=excel_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Error generating Excel: {e}")
+        return JSONResponse(status_code=500, content={"message": f"Error generating Excel: {str(e)}"})
+
 # ==================== Startup & Shutdown ====================
 
 @app.on_event("startup")
@@ -356,6 +377,11 @@ class DriveBulkTaskRequest(BaseModel):
     iteration_path: str
     sheet_name: Optional[str] = None
     tfs_config: Optional[TFSConfigRequest] = None
+    mode: Optional[str] = "create"  # Added mode parameter
+
+class ExcelDownloadRequest(BaseModel):
+    report_rows: List[Dict]
+    filename: Optional[str] = "tfs_tasks_report.xlsx"
 
 
 class OAuthPollRequest(BaseModel):
@@ -2561,6 +2587,7 @@ async def execute_tfs_task_bulk_upload(
     tfs_username: Optional[str] = Form(None),
     tfs_password: Optional[str] = Form(None),
     tfs_pat_token: Optional[str] = Form(None),
+    mode: Optional[str] = Form("create"), # Added mode parameter
 ):
     """Execute TFS task creation in batch mode from uploaded Excel file."""
     temp_path = None
@@ -2592,6 +2619,7 @@ async def execute_tfs_task_bulk_upload(
             tfs_config=tfs_config,
             batch_mode=True,
             sheet_name=(sheet_name or "").strip() or None,
+            mode=mode, # Pass mode
         )
         return JSONResponse(content=_safe_json_content(result))
     except Exception as ex:
@@ -2659,6 +2687,7 @@ async def execute_tfs_task_bulk_drive(request: DriveBulkTaskRequest):
             tfs_config=tfs_config,
             batch_mode=True,
             sheet_name=(request.sheet_name or "").strip() or None,
+            mode=request.mode or "create", # Pass mode
         )
         return JSONResponse(content=_safe_json_content(result))
     except Exception as ex:

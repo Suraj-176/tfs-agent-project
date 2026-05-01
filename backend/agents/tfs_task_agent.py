@@ -610,7 +610,8 @@ def process_single_task(
     password: str = None,
     domain: str = "DGSL",
     default_assigned_to: str = None,
-    logger=None
+    logger=None,
+    mode: str = "create"  # Added mode parameter
 ) -> Dict:
     """
     Process a single task row
@@ -623,10 +624,11 @@ def process_single_task(
         pat: TFS PAT token
         domain: TFS domain name
         logger: Logger function
+        mode: "create" or "update"
         
     Returns:
         {
-            "status": "created" | "skipped" | "failed",
+            "status": "created" | "updated" | "skipped" | "failed",
             "task_id": int,
             "reason": str,
             "report": TaskReport,
@@ -678,6 +680,34 @@ def process_single_task(
             ),
         }
     
+    # Check for existing task_id in CSV (for updates)
+    task_id_raw = get_col_value(row, ["id", "task id", "taskid", "work item id", "workitemid", "wi id", "taskid/bugid"])
+    task_id_to_update = None
+    try:
+        if task_id_raw and str(task_id_raw).strip() and str(task_id_raw).strip().lower() not in ["none", "null", "nan", ""]:
+            # Handle both int and float formats (e.g., "12345" or "12345.0")
+            task_id_str = str(task_id_raw).strip()
+            task_id_to_update = int(float(task_id_str))
+            logger(f"   Task ID from CSV: {task_id_to_update}")
+    except (ValueError, TypeError):
+        task_id_to_update = None
+
+    # VALIDATION: If mode is "update" but no Task ID is provided
+    if mode == "update" and not task_id_to_update:
+        reason = "Skipped: 'Update' mode selected but no Task ID provided for this row."
+        logger(f"⚠️  {reason}")
+        return {
+            "status": "skipped",
+            "reason": reason,
+            "report": TaskReport(
+                resource_email="",
+                assigned_to_tfs="",
+                task_title=task_title,
+                status="Skipped",
+                reason=reason
+            ),
+        }
+
     # Get assignee from CSV
     assigned_email = get_col_value(row, ["assigned to", "assignedto", "email", "email id", "resource", "resource name", "resource email", "employee", "employee name", "owner"])
     logger(f"   Assignee from CSV: '{assigned_email}'")
@@ -730,21 +760,8 @@ def process_single_task(
                 break
     hours = parse_hours(hours_raw)
     
-    # Check for existing task_id in CSV (for updates)
-    task_id_raw = get_col_value(row, ["id", "task id", "taskid", "work item id", "workitemid", "wi id", "taskid/bugid"])
-    task_id_to_update = None
-    try:
-        if task_id_raw and str(task_id_raw).strip():
-            # Handle both int and float formats (e.g., "12345" or "12345.0")
-            task_id_str = str(task_id_raw).strip()
-            task_id_to_update = int(float(task_id_str))
-            logger(f"   Task ID from CSV: {task_id_to_update} - will UPDATE instead of CREATE")
-    except (ValueError, TypeError):
-        task_id_to_update = None
-        logger(f"   Invalid task ID in CSV: '{task_id_raw}' - will CREATE new task instead")
-    
-    # Check duplicates
-    if skip_duplicates and not task_id_to_update:
+    # Check duplicates (only if creating)
+    if mode == "create" and skip_duplicates and not task_id_to_update:
         try:
             existing_id = find_existing_task(
                 task_title,
@@ -936,7 +953,8 @@ def process_task_batch(
     skip_duplicates: bool = True,
     tfs_config: dict = None,
     employee_map: dict = None,
-    logger=None
+    logger=None,
+    mode: str = "create"  # Added mode parameter
 ) -> Dict:
     """
     Process batch of tasks from Excel file with error recovery
@@ -948,6 +966,7 @@ def process_task_batch(
         tfs_config: TFS configuration dict
         employee_map: Employee name to email mapping
         logger: Logger function
+        mode: "create" or "update"
         
     Returns:
         {
@@ -982,7 +1001,7 @@ def process_task_batch(
     else:
         default_assigned_to = None
     
-    logger(f"📋 Processing bulk tasks | Auth: {auth_mode} | Domain: {domain} | Default Assignee: {default_assigned_to or 'NONE'}")
+    logger(f"📋 Processing bulk tasks | Auth: {auth_mode} | Domain: {domain} | Default Assignee: {default_assigned_to or 'NONE'} | Mode: {mode}")
     logger(f"⚙️ Config: {json.dumps(sanitize_params(tfs_config), indent=2)}")
 
     # Prevent anonymous API requests.
@@ -1060,7 +1079,8 @@ def process_task_batch(
                     password=tfs_config.get("password"),
                     domain=domain,
                     default_assigned_to=default_assigned_to,
-                    logger=logger
+                    logger=logger,
+                    mode=mode
                 )
                 
                 if result["status"] == "created":
@@ -1090,7 +1110,7 @@ def process_task_batch(
         # Summary
         logger("\n" + "=" * 50)
         logger("📊 BATCH EXECUTION SUMMARY")
-        logger(f"✓ Created : {success_count}")
+        logger(f"✓ Success : {success_count}")
         logger(f"✗ Failed  : {failed_count}")
         logger(f"⊘ Skipped : {skipped_count}")
         logger(f"📋 Total   : {len(df)}")
@@ -1127,7 +1147,8 @@ def execute_task_creation(
     tfs_config: dict = None,
     batch_mode: bool = False,
     sheet_name=None,
-    skip_duplicates: bool = True
+    skip_duplicates: bool = True,
+    mode: str = "create"  # Added mode parameter
 ):
     """
     Execute task creation with three modes:
@@ -1226,14 +1247,15 @@ def execute_task_creation(
             
             try:
                 # Process batch file
-                log_to_file(f"  🔄 Calling process_task_batch...")
+                log_to_file(f"  🔄 Calling process_task_batch with mode={mode}...")
                 result = process_task_batch(
                     excel_file=tmp_path,
                     iteration_path=iteration_path,
                     sheet_name=sheet_name,
                     skip_duplicates=skip_duplicates,
                     tfs_config=tfs_config,
-                    logger=print
+                    logger=print,
+                    mode=mode
                 )
                 log_to_file(f"  ✅ process_task_batch returned: status={result.get('status')}, success_count={result.get('success_count')}")
                 
@@ -1247,13 +1269,14 @@ def execute_task_creation(
                 return {
                     "status": result.get("status", "success"),
                     "summary": {
-                        "created": result.get("success_count", 0),
+                        "created": result.get("success_count", 0) if mode == "create" else 0,
+                        "updated": result.get("success_count", 0) if mode == "update" else 0,
                         "failed": result.get("failed_count", 0),
                         "skipped": result.get("skipped_count", 0),
                         "total": result.get("total", 0),
                     },
-                    "created_ids": result.get("created_ids", []),
-                    "updated_ids": [],
+                    "created_ids": result.get("created_ids", []) if mode == "create" else [],
+                    "updated_ids": result.get("created_ids", []) if mode == "update" else [],
                     "report_rows": result.get("report_rows", []),
                     "error": result.get("error"),
                     "errors": error_details,
@@ -1401,19 +1424,62 @@ Task #1: [Title]
                 "error": "Please provide: (1) Excel file for bulk, (2) task_description to CREATE, or (3) work_item_id to UPDATE",
             }
     
-    except Exception as e:
-        error_msg = str(e)
-        log_to_file(f"\n❌ execute_task_creation EXCEPTION: {error_msg}")
-        import traceback
-        log_to_file(traceback.format_exc())
-        return {
-            "status": "error",
-            "error": error_msg,
-            "summary": {"created": 0, "failed": 0, "updated": 0, "total": 0},
-            "created_ids": [],
-            "updated_ids": [],
-            "report_rows": [],
-            "errors": [error_msg],
-            "agent": "TFS Task Agent (Bulk)",
-        }
+def generate_task_excel_report(report_rows: List[Dict]) -> bytes:
+    """
+    Generate an Excel report from task execution results
+    
+    Args:
+        report_rows: List of task report dictionaries
+        
+    Returns:
+        Excel file content as bytes
+    """
+    import io
+    import pandas as pd
+    
+    if not report_rows:
+        # Create empty template if no rows
+        df = pd.DataFrame(columns=[
+            "ID", "Title", "Assigned To", "Original Estimate", 
+            "Completed Work", "Remaining Work", "Start Date", "Created Date"
+        ])
+    else:
+        # Map report fields to template columns
+        data = []
+        for r in report_rows:
+            # Determine dates
+            start_date = r.get("start_date") or ""
+            # Format date if it's in TFS format (ISO)
+            if start_date and "T" in start_date:
+                try:
+                    start_date = datetime.fromisoformat(start_date.split(".")[0]).strftime("%d-%m-%Y")
+                except:
+                    pass
+            
+            created_date = datetime.now().strftime("%d-%m-%Y")
+            
+            # Hours logic
+            orig_est = r.get("hours") or 0
+            comp_work = 0 # As per user request: "completed should be 0 only"
+            rem_work = orig_est
+            
+            data.append({
+                "ID": r.get("task_id") or "",
+                "Title": r.get("task_title") or "",
+                "Assigned To": r.get("assigned_to_tfs") or r.get("resource_email") or "",
+                "Original Estimate": orig_est,
+                "Completed Work": comp_work,
+                "Remaining Work": rem_work,
+                "Start Date": start_date,
+                "Created Date": created_date
+            })
+        
+        df = pd.DataFrame(data)
+    
+    # Write to Excel in memory
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Tasks')
+    
+    return output.getvalue()
 
