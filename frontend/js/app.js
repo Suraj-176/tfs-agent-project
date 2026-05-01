@@ -2391,10 +2391,6 @@ function populateConfigForm(agentId) {
   configForm.innerHTML = '';
 
   if (agentId === 'task-creation') {
-    // ... rest of the code remains same ...
-    // Trigger iteration path fetch automatically if configured
-    setTimeout(() => fetchIterationPathStep2(true), 200);
-  }
     configTitle.textContent = 'Step 2: Task Creation Configuration';
     configDesc.textContent = '— Enter task description or upload Excel file for bulk creation';
     
@@ -2528,24 +2524,7 @@ function populateConfigForm(agentId) {
     
     // [AGENT 1] Auto-fetch iteration path after DOM is ready
     addDebugLog('🔄 Task agent config loaded, auto-fetching iteration path...');
-    requestAnimationFrame(() => {
-      const field = document.getElementById('iteration-path');
-      if (field) {
-        addDebugLog('✅ Iteration field found in DOM, fetching...');
-        fetchIterationPathStep2(true);
-      } else {
-        addDebugLog('⏳ Iteration field not ready yet, retrying in 100ms...');
-        setTimeout(() => {
-          const field2 = document.getElementById('iteration-path');
-          if (field2) {
-            addDebugLog('✅ Iteration field found after retry, fetching...');
-            fetchIterationPathStep2(true);
-          } else {
-            addDebugLog('❌ Iteration field still not found after retry');
-          }
-        }, 100);
-      }
-    });
+    setTimeout(() => fetchIterationPathStep2(true), 200);
     
   } else if (agentId === 'test-case') {
     configTitle.textContent = 'Step 2: Test Case Generation Configuration';
@@ -6221,7 +6200,7 @@ function renderExecutionResult(result, startedAtMs = null) {
         lastTaskResult = result;
     } else {
         const itemCount = summary.created || summary.updated || 0;
-        metaText = `Total: ${total} | Items: ${itemCount} | Failed: ${failed} | Skipped: ${skipped} | Auth: ${authMode}`;
+        metaText = `Total: ${total} | Created/Updated: ${itemCount} | Failed: ${failed} | Skipped: ${skipped} | Auth: ${authMode}`;
     }
   }
   if (resultsMeta) resultsMeta.textContent = metaText;
@@ -6765,12 +6744,8 @@ function newExecution() {
   // === Agent 1: Task Creation - clear inputs ===
   const excelFile = document.getElementById('excel-file');
   if (excelFile) excelFile.value = '';
-  // Do NOT clear iteration path - preserve it for convenience
   const iterationPath = document.getElementById('iteration-path');
-  const cachedIteration = (sessionStorage.getItem('manual_iteration_path') || '').trim();
-  if (iterationPath && !iterationPath.value && cachedIteration) {
-    iterationPath.value = cachedIteration;
-  }
+  if (iterationPath) iterationPath.value = '';
 
   // === Agent 2: Test Case - clear inputs ===
   const workItemId = document.getElementById('work-item-id');
