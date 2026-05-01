@@ -2391,6 +2391,10 @@ function populateConfigForm(agentId) {
   configForm.innerHTML = '';
 
   if (agentId === 'task-creation') {
+    // ... rest of the code remains same ...
+    // Trigger iteration path fetch automatically if configured
+    setTimeout(() => fetchIterationPathStep2(true), 200);
+  }
     configTitle.textContent = 'Step 2: Task Creation Configuration';
     configDesc.textContent = '— Enter task description or upload Excel file for bulk creation';
     
@@ -6210,11 +6214,14 @@ function renderExecutionResult(result, startedAtMs = null) {
     if (currentAgent === 'task-creation') {
         const createdCount = summary.created || 0;
         const updatedCount = summary.updated || 0;
-        metaText = `Total: ${total} | Created: ${createdCount} | Updated: ${updatedCount} | Failed: ${failed} | Skipped: ${skipped}`;
+        const failedCount = result?.failed_count || summary.failed || 0;
+        const skippedCount = result?.skipped_count || summary.skipped || 0;
+        const totalCount = result?.total || summary.total || (createdCount + updatedCount + failedCount + skippedCount);
+        metaText = `Total: ${totalCount} | Created: ${createdCount} | Updated: ${updatedCount} | Failed: ${failedCount} | Skipped: ${skippedCount}`;
         lastTaskResult = result;
     } else {
         const itemCount = summary.created || summary.updated || 0;
-        metaText = `Total: ${total} | Created/Updated: ${itemCount} | Failed: ${failed} | Skipped: ${skipped} | Auth: ${authMode}`;
+        metaText = `Total: ${total} | Items: ${itemCount} | Failed: ${failed} | Skipped: ${skipped} | Auth: ${authMode}`;
     }
   }
   if (resultsMeta) resultsMeta.textContent = metaText;
@@ -6758,8 +6765,12 @@ function newExecution() {
   // === Agent 1: Task Creation - clear inputs ===
   const excelFile = document.getElementById('excel-file');
   if (excelFile) excelFile.value = '';
+  // Do NOT clear iteration path - preserve it for convenience
   const iterationPath = document.getElementById('iteration-path');
-  if (iterationPath) iterationPath.value = '';
+  const cachedIteration = (sessionStorage.getItem('manual_iteration_path') || '').trim();
+  if (iterationPath && !iterationPath.value && cachedIteration) {
+    iterationPath.value = cachedIteration;
+  }
 
   // === Agent 2: Test Case - clear inputs ===
   const workItemId = document.getElementById('work-item-id');

@@ -869,12 +869,13 @@ def resolve_tfs_identity(email: str, domain: str = "DGSL", base_url: str = None,
         try:
             matches = search_tfs_identities(email, base_url, pat, username, password)
             if matches:
-                return matches[0] # Returns "Display Name <email>"
+                # Returns the first (best) match from TFS, e.g. "Suraj Yadav <email>"
+                return matches[0]
         except:
             pass
             
     # 3. Fallback: Return the name as-is. 
-    # TFS is usually better at resolving names than we are at guessing domain prefixes.
+    # TFS is natively good at resolving names; guessing domain prefixes often causes "unknown identity" errors.
     return email
 
 
