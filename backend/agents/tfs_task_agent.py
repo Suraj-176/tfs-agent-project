@@ -1,4 +1,4 @@
-import os
+﻿import os
 import json
 import pandas as pd
 from datetime import datetime
@@ -188,7 +188,7 @@ def parse_daily_tasks_excel(
     Returns:
         DataFrame with columns: Assigned To, Date, TaskID/BugID, Task, Hours, Status
     """
-    print(f"\n📖 parse_daily_tasks_excel START")
+    print(f"\n≡ƒôû parse_daily_tasks_excel START")
     print(f"   file_path: {file_path}")
     print(f"   sheet_name: {sheet_name}")
     
@@ -201,7 +201,7 @@ def parse_daily_tasks_excel(
     except Exception as excel_err:
         # If Excel parsing fails, try CSV
         if "not a zip file" in str(excel_err).lower() or "openpyxl" in str(excel_err):
-            print(f"   ⚠ Excel parsing failed ({str(excel_err)[:60]}), trying CSV format...")
+            print(f"   ΓÜá Excel parsing failed ({str(excel_err)[:60]}), trying CSV format...")
             try:
                 raw_df = pd.read_csv(file_path, header=None)
             except Exception as csv_err:
@@ -209,7 +209,7 @@ def parse_daily_tasks_excel(
         else:
             raise
     
-    print(f"   📊 Raw DataFrame shape: {raw_df.shape}")
+    print(f"   ≡ƒôè Raw DataFrame shape: {raw_df.shape}")
     
     if len(raw_df) == 0:
         raise ValueError("No task rows found in Excel file")
@@ -225,28 +225,28 @@ def parse_daily_tasks_excel(
     first_row_vals = [str(raw_df.iloc[0, i]).strip() if i < len(raw_df.columns) else "" for i in range(min(5, len(raw_df.columns)))]
     is_header_format = any(val.lower() in ["date", "taskid", "task", "hours", "status"] for val in first_row_vals if val)
     
-    print(f"   🔍 First row values: {first_row_vals}")
-    print(f"   📋 Header format detected: {is_header_format}")
+    print(f"   ≡ƒöì First row values: {first_row_vals}")
+    print(f"   ≡ƒôï Header format detected: {is_header_format}")
     
     if is_header_format:
-        print(f"   ✅ Using header-based format parsing...")
+        print(f"   Γ£à Using header-based format parsing...")
         # Try to read with headers
         try:
             df_with_header = pd.read_excel(file_path, sheet_name=sheet_name, engine='openpyxl')
         except Exception as excel_err:
             # Fall back to CSV
             if "not a zip file" in str(excel_err).lower() or "openpyxl" in str(excel_err):
-                print(f"   ⚠ Excel header parsing failed, trying CSV...")
+                print(f"   ΓÜá Excel header parsing failed, trying CSV...")
                 df_with_header = pd.read_csv(file_path)
             else:
                 raise
         
-        print(f"   📊 Header DataFrame shape: {df_with_header.shape}")
-        print(f"   📝 Column names (before normalize): {df_with_header.columns.tolist()}")
+        print(f"   ≡ƒôè Header DataFrame shape: {df_with_header.shape}")
+        print(f"   ≡ƒô¥ Column names (before normalize): {df_with_header.columns.tolist()}")
         
         # Normalize column names
         df_with_header.columns = df_with_header.columns.str.lower().str.strip()
-        print(f"   📝 Column names (after normalize): {df_with_header.columns.tolist()}")
+        print(f"   ≡ƒô¥ Column names (after normalize): {df_with_header.columns.tolist()}")
         
         # Map common column names
         col_map = {
@@ -272,34 +272,34 @@ def parse_daily_tasks_excel(
         status_col = None
         assigned_col = None
         
-        print(f"   🔎 Searching for columns in: {df_with_header.columns.tolist()}")
+        print(f"   ≡ƒöÄ Searching for columns in: {df_with_header.columns.tolist()}")
         for col in df_with_header.columns:
             col_lower = col.lower()
             # Check for task_id/bugid FIRST before task
             if "taskid" in col_lower or "bugid" in col_lower:
                 task_id_col = col
-                print(f"      ✓ task_id_col = '{col}'")
+                print(f"      Γ£ô task_id_col = '{col}'")
             elif "date" in col_lower:
                 date_col = col
-                print(f"      ✓ date_col = '{col}'")
+                print(f"      Γ£ô date_col = '{col}'")
             elif "task" in col_lower or "description" in col_lower:
                 task_col = col
-                print(f"      ✓ task_col = '{col}'")
+                print(f"      Γ£ô task_col = '{col}'")
             elif "hours" in col_lower or "time" in col_lower:
                 hours_col = col
-                print(f"      ✓ hours_col = '{col}'")
+                print(f"      Γ£ô hours_col = '{col}'")
             elif "status" in col_lower:
                 status_col = col
-                print(f"      ✓ status_col = '{col}'")
+                print(f"      Γ£ô status_col = '{col}'")
             elif "assign" in col_lower or "employee" in col_lower or "resource" in col_lower or "owner" in col_lower or (col_lower == "name"):
                 assigned_col = col
-                print(f"      ✓ assigned_col = '{col}'")
+                print(f"      Γ£ô assigned_col = '{col}'")
         
-        print(f"   🎯 Found: date={date_col}, task={task_col}, task_id={task_id_col}, hours={hours_col}, status={status_col}, assigned={assigned_col}")
+        print(f"   ≡ƒÄ» Found: date={date_col}, task={task_col}, task_id={task_id_col}, hours={hours_col}, status={status_col}, assigned={assigned_col}")
         
         if not (date_col and task_col):
             error_msg = f"Could not find required Date and Task columns in header format. Found: date={date_col}, task={task_col}"
-            print(f"   ❌ {error_msg}")
+            print(f"   Γ¥î {error_msg}")
             raise ValueError(error_msg)
         
         # Use logged-in user if no employee column found
@@ -340,18 +340,18 @@ def parse_daily_tasks_excel(
                     "Status": str(status_val).strip() if status_val and not pd.isna(status_val) else None,
                 })
             except Exception as row_err:
-                print(f"⚠ Skipping row {idx}: {str(row_err)}")
+                print(f"ΓÜá Skipping row {idx}: {str(row_err)}")
                 continue
         
         if records:
-            print(f"   ✅ Found {len(records)} valid task records")
+            print(f"   Γ£à Found {len(records)} valid task records")
             result_df = pd.DataFrame(records)
-            print(f"   📊 Result DataFrame shape: {result_df.shape}")
-            print(f"   📄 Result columns: {result_df.columns.tolist()}")
-            return normalize_columns(result_df)  # ← Normalize columns to lowercase!
+            print(f"   ≡ƒôè Result DataFrame shape: {result_df.shape}")
+            print(f"   ≡ƒôä Result columns: {result_df.columns.tolist()}")
+            return normalize_columns(result_df)  # ΓåÉ Normalize columns to lowercase!
         else:
             error_msg = "No task rows found in Excel file"
-            print(f"   ❌ {error_msg}")
+            print(f"   Γ¥î {error_msg}")
             raise ValueError(error_msg)
     
     # Original dual-header format parsing
@@ -418,7 +418,7 @@ def parse_daily_tasks_excel(
     except Exception as excel_err:
         # Fall back to CSV
         if "not a zip file" in str(excel_err).lower() or "openpyxl" in str(excel_err):
-            print(f"   ⚠ Excel fallback parsing failed, trying CSV...")
+            print(f"   ΓÜá Excel fallback parsing failed, trying CSV...")
             table_df = pd.read_csv(file_path, header=0)
         else:
             raise
@@ -515,7 +515,7 @@ def parse_daily_tasks_excel(
     except Exception as excel_err:
         # Fall back to CSV
         if "not a zip file" in str(excel_err).lower() or "openpyxl" in str(excel_err):
-            print(f"   ⚠ Excel heuristic parsing failed, trying CSV...")
+            print(f"   ΓÜá Excel heuristic parsing failed, trying CSV...")
             heuristic_df = pd.read_csv(file_path, header=None)
         else:
             raise
@@ -695,7 +695,7 @@ def process_single_task(
     # VALIDATION: If mode is "update" but no Task ID is provided
     if mode == "update" and not task_id_to_update:
         reason = "Skipped: 'Update' mode selected but no Task ID provided for this row."
-        logger(f"⚠️  {reason}")
+        logger(f"ΓÜá∩╕Å  {reason}")
         return {
             "status": "skipped",
             "reason": reason,
@@ -717,12 +717,12 @@ def process_single_task(
     # Use default if no assignee found in CSV
     if not assigned_tfs and default_assigned_to:
         assigned_tfs = default_assigned_to
-        logger(f"   ⚠️  CSV assignee empty, using default: {assigned_tfs}")
+        logger(f"   ΓÜá∩╕Å  CSV assignee empty, using default: {assigned_tfs}")
     
     # If still no assignee, skip this task with clear guidance
     if not assigned_tfs:
         reason = "Missing assignee: CSV row has no 'Assigned To' value and no default TFS username configured. Please either: (1) Add 'Assigned To' column to CSV, or (2) Provide 'username' in TFS config"
-        logger(f"⚠️  {reason}")
+        logger(f"ΓÜá∩╕Å  {reason}")
         return {
             "status": "skipped",
             "reason": reason,
@@ -797,7 +797,7 @@ def process_single_task(
     try:
         if task_id_to_update:
             # UPDATE existing task
-            logger(f"📝 Updating task {task_id_to_update}: {task_title}")
+            logger(f"≡ƒô¥ Updating task {task_id_to_update}: {task_title}")
             response = update_task(
                 task_id=task_id_to_update,
                 title=task_title,
@@ -850,7 +850,7 @@ def process_single_task(
                 else:
                     reason_text = f"HTTP {response.status_code}: {response.text[:200]}"
                 
-                logger(f"❌ Update failed: {reason_text}")
+                logger(f"Γ¥î Update failed: {reason_text}")
                 return {
                     "status": "failed",
                     "reason": f"Update failed: {reason_text}",
@@ -869,7 +869,7 @@ def process_single_task(
                 }
         else:
             # CREATE new task
-            logger(f"➕ Creating new task: {task_title}")
+            logger(f"Γ₧ò Creating new task: {task_title}")
             response = create_task(
                 title=task_title,
                 assigned_to=assigned_tfs,
@@ -906,12 +906,18 @@ def process_single_task(
                 ),
             }
         else:
-            reason_text = response.text[:200]
+            reason_text = response.text[:500]
             if response.status_code == 401:
                 reason_text = (
                     "Authentication failed (401 TF400813). "
                     "Check username/password format or provide PAT if required by server policy."
                 )
+            elif response.status_code == 400 and "unknown identity" in reason_text.lower():
+                reason_text = (
+                    f"TFS Error: The identity '{assigned_tfs}' is unknown. "
+                    "HINT: Provide the full email (e.g. suraj.yadav@company.com) or the full Display Name in the Excel 'Assigned To' column."
+                )
+            
             return {
                 "status": "failed",
                 "reason": f"API error {response.status_code}: {reason_text}",
@@ -1001,34 +1007,34 @@ def process_task_batch(
     else:
         default_assigned_to = None
     
-    logger(f"📋 Processing bulk tasks | Auth: {auth_mode} | Domain: {domain} | Default Assignee: {default_assigned_to or 'NONE'} | Mode: {mode}")
-    logger(f"⚙️ Config: {json.dumps(sanitize_params(tfs_config), indent=2)}")
+    logger(f"≡ƒôï Processing bulk tasks | Auth: {auth_mode} | Domain: {domain} | Default Assignee: {default_assigned_to or 'NONE'} | Mode: {mode}")
+    logger(f"ΓÜÖ∩╕Å Config: {json.dumps(sanitize_params(tfs_config), indent=2)}")
 
     # Prevent anonymous API requests.
     if not pat_token and not (username and password):
         raise ValueError("Authentication required: provide PAT, or both username and password.")
     
     try:
-        logger(f"📖 Reading Excel file: {excel_file}")
+        logger(f"≡ƒôû Reading Excel file: {excel_file}")
         
         # Parse Excel (try selected sheet first, then all sheets as fallback)
         selected_sheet = 0 if sheet_name in [None, ""] else sheet_name
         try:
             df = parse_daily_tasks_excel(excel_file, sheet_name=selected_sheet, employee_map=employee_map)
-            logger(f"✓ Parsed {len(df)} task rows")
+            logger(f"Γ£ô Parsed {len(df)} task rows")
         except Exception as first_ex:
             first_msg = str(first_ex)
             if "No task rows found in Excel file" not in first_msg:
                 raise
 
-            logger(f"⚠ Selected sheet '{selected_sheet}' had no parsable rows. Trying all sheets...")
+            logger(f"ΓÜá Selected sheet '{selected_sheet}' had no parsable rows. Trying all sheets...")
             try:
                 xls = pd.ExcelFile(excel_file, engine='openpyxl')
                 sheet_names = xls.sheet_names
             except Exception as excel_err:
                 # If it's a CSV file, skip multi-sheet attempt
                 if "not a zip file" in str(excel_err).lower() or "openpyxl" in str(excel_err):
-                    logger(f"   ⚠ File is not Excel format (likely CSV), skipping multi-sheet fallback")
+                    logger(f"   ΓÜá File is not Excel format (likely CSV), skipping multi-sheet fallback")
                     sheet_names = []
                 else:
                     raise
@@ -1039,7 +1045,7 @@ def process_task_batch(
                     candidate = parse_daily_tasks_excel(excel_file, sheet_name=s, employee_map=employee_map)
                     if candidate is not None and len(candidate) > 0:
                         parsed = candidate
-                        logger(f"✓ Parsed {len(candidate)} task rows from sheet: {s}")
+                        logger(f"Γ£ô Parsed {len(candidate)} task rows from sheet: {s}")
                         break
                 except Exception:
                     continue
@@ -1051,10 +1057,10 @@ def process_task_batch(
         if not iteration_path or str(iteration_path).strip() == "":
             raise ValueError("Iteration path is required")
         
-        logger(f"📍 Using iteration path: {iteration_path}")
-        logger(f"📊 DataFrame shape: {df.shape}")
-        logger(f"📝 DataFrame columns: {df.columns.tolist()}")
-        logger(f"📄 First 2 rows:")
+        logger(f"≡ƒôì Using iteration path: {iteration_path}")
+        logger(f"≡ƒôè DataFrame shape: {df.shape}")
+        logger(f"≡ƒô¥ DataFrame columns: {df.columns.tolist()}")
+        logger(f"≡ƒôä First 2 rows:")
         for i in range(min(2, len(df))):
             logger(f"   Row {i}: {df.iloc[i].to_dict()}")
         
@@ -1086,17 +1092,17 @@ def process_task_batch(
                 if result["status"] == "created":
                     success_count += 1
                     created_ids.append(result["task_id"])
-                    logger(f"✓ Created task {result['task_id']}: {result['report'].task_title}")
+                    logger(f"Γ£ô Created task {result['task_id']}: {result['report'].task_title}")
                 elif result["status"] == "updated":
                     success_count += 1
                     created_ids.append(result["task_id"])
-                    logger(f"✓ Updated task {result['task_id']}: {result['report'].task_title}")
+                    logger(f"Γ£ô Updated task {result['task_id']}: {result['report'].task_title}")
                 elif result["status"] == "skipped":
                     skipped_count += 1
-                    logger(f"⊘ Skipped: {result.get('reason', 'No reason provided')}")
+                    logger(f"Γèÿ Skipped: {result.get('reason', 'No reason provided')}")
                 else:
                     failed_count += 1
-                    logger(f"✗ Failed: {result.get('reason', 'Unknown error')}")
+                    logger(f"Γ£ù Failed: {result.get('reason', 'Unknown error')}")
                     errors.append(result.get("reason", "Unknown error"))
                 
                 report_rows.append(result["report"])
@@ -1109,11 +1115,11 @@ def process_task_batch(
         
         # Summary
         logger("\n" + "=" * 50)
-        logger("📊 BATCH EXECUTION SUMMARY")
-        logger(f"✓ Success : {success_count}")
-        logger(f"✗ Failed  : {failed_count}")
-        logger(f"⊘ Skipped : {skipped_count}")
-        logger(f"📋 Total   : {len(df)}")
+        logger("≡ƒôè BATCH EXECUTION SUMMARY")
+        logger(f"Γ£ô Success : {success_count}")
+        logger(f"Γ£ù Failed  : {failed_count}")
+        logger(f"Γèÿ Skipped : {skipped_count}")
+        logger(f"≡ƒôï Total   : {len(df)}")
         logger("=" * 50)
         
         return {
@@ -1185,16 +1191,16 @@ def execute_task_creation(
     
     try:
         log_to_file(f"\n{'='*70}")
-        log_to_file(f"📌 execute_task_creation START at {__import__('datetime').datetime.now().isoformat()}")
-        log_to_file(f"  ✓ batch_mode: {batch_mode} (type: {type(batch_mode).__name__})")
-        log_to_file(f"  ✓ excel_file: {'<present>' if excel_file else '<NULL>'} (length: {len(excel_file) if excel_file else 0})")
-        log_to_file(f"  ✓ iteration_path: {iteration_path}")
-        log_to_file(f"  ✓ sheet_name: {sheet_name}")
-        log_to_file(f"  ✓ work_item_id: {work_item_id}")
-        log_to_file(f"  ✓ task_description: {task_description[:50] if task_description else '<empty>'}...")
+        log_to_file(f"≡ƒôî execute_task_creation START at {__import__('datetime').datetime.now().isoformat()}")
+        log_to_file(f"  Γ£ô batch_mode: {batch_mode} (type: {type(batch_mode).__name__})")
+        log_to_file(f"  Γ£ô excel_file: {'<present>' if excel_file else '<NULL>'} (length: {len(excel_file) if excel_file else 0})")
+        log_to_file(f"  Γ£ô iteration_path: {iteration_path}")
+        log_to_file(f"  Γ£ô sheet_name: {sheet_name}")
+        log_to_file(f"  Γ£ô work_item_id: {work_item_id}")
+        log_to_file(f"  Γ£ô task_description: {task_description[:50] if task_description else '<empty>'}...")
         
         # Check actual conditions
-        log_to_file(f"  🔍 Condition checks:")
+        log_to_file(f"  ≡ƒöì Condition checks:")
         log_to_file(f"     batch_mode AND excel_file: {batch_mode and excel_file}")
         log_to_file(f"     work_item_id AND work_item_id > 0: {work_item_id and work_item_id > 0}")
         log_to_file(f"     task_description AND len > 0: {task_description and len(task_description) > 0}")
@@ -1205,15 +1211,15 @@ def execute_task_creation(
             import tempfile
             import os
             
-            log_to_file(f"  📝 Bulk mode detected, processing Excel file...")
+            log_to_file(f"  ≡ƒô¥ Bulk mode detected, processing Excel file...")
             
             try:
-                log_to_file(f"  🔐 Decoding base64 Excel file ({len(excel_file)} chars)...")
+                log_to_file(f"  ≡ƒöÉ Decoding base64 Excel file ({len(excel_file)} chars)...")
                 file_bytes = base64.b64decode(excel_file)
-                log_to_file(f"  ✅ Decoded {len(file_bytes)} bytes")
+                log_to_file(f"  Γ£à Decoded {len(file_bytes)} bytes")
             except Exception as e:
                 error_msg = f"Failed to decode Excel file: {str(e)}"
-                log_to_file(f"  ❌ {error_msg}")
+                log_to_file(f"  Γ¥î {error_msg}")
                 return {
                     "status": "error",
                     "error": error_msg,
@@ -1230,10 +1236,10 @@ def execute_task_creation(
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
                     tmp.write(file_bytes)
                     tmp_path = tmp.name
-                log_to_file(f"  💾 Temp file created: {tmp_path}")
+                log_to_file(f"  ≡ƒÆ╛ Temp file created: {tmp_path}")
             except Exception as e:
                 error_msg = f"Failed to create temp file: {str(e)}"
-                log_to_file(f"  ❌ {error_msg}")
+                log_to_file(f"  Γ¥î {error_msg}")
                 return {
                     "status": "error",
                     "error": error_msg,
@@ -1247,7 +1253,7 @@ def execute_task_creation(
             
             try:
                 # Process batch file
-                log_to_file(f"  🔄 Calling process_task_batch with mode={mode}...")
+                log_to_file(f"  ≡ƒöä Calling process_task_batch with mode={mode}...")
                 result = process_task_batch(
                     excel_file=tmp_path,
                     iteration_path=iteration_path,
@@ -1257,7 +1263,7 @@ def execute_task_creation(
                     logger=print,
                     mode=mode
                 )
-                log_to_file(f"  ✅ process_task_batch returned: status={result.get('status')}, success_count={result.get('success_count')}")
+                log_to_file(f"  Γ£à process_task_batch returned: status={result.get('status')}, success_count={result.get('success_count')}")
                 
                 # If process_task_batch returned an error, capture it
                 error_details = []
@@ -1283,7 +1289,7 @@ def execute_task_creation(
                     "agent": "TFS Task Agent (Bulk)",
                 }
             except Exception as batch_error:
-                print(f"❌ Batch processing error: {str(batch_error)}")
+                print(f"Γ¥î Batch processing error: {str(batch_error)}")
                 import traceback
                 traceback.print_exc()
                 return {
@@ -1321,10 +1327,10 @@ def execute_task_creation(
                     password=tfs_password,
                     pat=tfs_pat
                 )
-                fetch_status = "✅ Task fetched successfully"
+                fetch_status = "Γ£à Task fetched successfully"
             except Exception as e:
                 existing_task = ""
-                fetch_status = f"⚠️ Could not fetch task {work_item_id}: {str(e)}"
+                fetch_status = f"ΓÜá∩╕Å Could not fetch task {work_item_id}: {str(e)}"
             
             task = Task(
                 description=f"""
@@ -1426,7 +1432,7 @@ Task #1: [Title]
 
     except Exception as e:
         error_msg = str(e)
-        log_to_file(f"\n❌ execute_task_creation EXCEPTION: {error_msg}")
+        log_to_file(f"\nΓ¥î execute_task_creation EXCEPTION: {error_msg}")
         import traceback
         log_to_file(traceback.format_exc())
         return {
