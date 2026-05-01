@@ -4036,8 +4036,10 @@ async function populateIterationDropdown(config) {
       
       // Pre-render all items ONCE and store as HTML
       window.fullIterationHTML = iterations.map(iter => {
-        const iterPath = (iter.path || iter).replace(/'/g, "\\'").replace(/"/g, '\\"');
-        return `<div style="padding:8px;border-bottom:1px solid #f0f0f0;cursor:pointer;background:transparent;transition:background 0.15s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'" onmousedown="event.preventDefault(); selectIteration('${iterPath}'); return false;">${iter.path || iter}</div>`;
+        const path = iter.path || iter;
+        // Escape for JS string: backslashes must be doubled for the inline onclick handler
+        const iterPathEscaped = path.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+        return `<div style="padding:8px;border-bottom:1px solid #f0f0f0;cursor:pointer;background:transparent;transition:background 0.15s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='transparent'" onmousedown="event.preventDefault(); selectIteration('${iterPathEscaped}'); return false;">${path}</div>`;
       }).join('');
       
       // Display the pre-rendered list
