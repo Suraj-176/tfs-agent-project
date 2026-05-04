@@ -2414,7 +2414,10 @@ function populateConfigForm(agentId) {
       </div>
 
       <div class="config-row">
-        <label style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--ink);">Iteration Path</label>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--ink);margin:0;">Iteration Path</label>
+          <span onclick="fetchIterationPathStep2(false)" title="Refresh Iteration Path" style="cursor:pointer;font-weight:bold;color:#b45309;font-size:1rem;padding:0 4px;">↻</span>
+        </div>
         <div style="position:relative;">
           <input class="config-input" id="iteration-path" type="text" placeholder="Start typing or click to select..." 
                  style="flex:1;height:32px;padding:4px 8px;font-size:0.9rem;width:100%;" 
