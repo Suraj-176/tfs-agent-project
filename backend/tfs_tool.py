@@ -11,6 +11,22 @@ from urllib.parse import urlparse
 import logging
 import sys
 from pathlib import Path
+from requests_ntlm import HttpNtlmAuth
+
+# Global session pool for NTLM to prevent slow repeated handshakes
+_TFS_SESSIONS = {}
+
+def _get_tfs_session(username, password, pat=None):
+    """Get or create a pooled requests session for TFS."""
+    key = f"{username}:{password}:{pat}"
+    if key not in _TFS_SESSIONS:
+        session = requests.Session()
+        if pat:
+            session.headers.update({"Authorization": f"Basic {base64.b64encode(f':{pat}'.encode()).decode()}"})
+        elif username and password:
+            session.auth = HttpNtlmAuth(username, password)
+        _TFS_SESSIONS[key] = session
+    return _TFS_SESSIONS[key]
 
 # Ensure logging is configured and get logger
 log_dir = Path(__file__).parent.parent / "logs"
@@ -231,9 +247,9 @@ def fetch_user_story_details(work_item_id, base_url: str = None, username: str =
         raise ValueError("Missing TFS base URL. Set TFS_BASE_URL in .env or provide base_url parameter")
 
     url = f"{url_base}/_apis/wit/workitems/{work_item_id}?api-version=6.0"
-    auth, headers = _get_auth_and_headers(username, password, pat)
-
-    response = requests.get(url, auth=auth, headers=headers, timeout=60)
+    session = _get_tfs_session(username, password, pat)
+    
+    response = session.get(url, timeout=60)
     response.raise_for_status()
 
     data = response.json()

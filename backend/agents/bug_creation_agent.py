@@ -260,12 +260,15 @@ def execute_bug_creation(
             else:
                 base_prompt = PromptsManager.get_bug_report_prompt()
 
-            agent = create_bug_creation_agent(llm_config)
+            # SPEED OPTIMIZATION: Use direct LLM call instead of Crew
+            llm = get_configured_llm(llm_config)
             task_desc = f"{base_prompt}\n\nAnalyze and format this input:\n{bug_description or reproduction_steps or bug_title}"
-            task = Task(description=task_desc, agent=agent, expected_output="Structured JSON fields")
-            analysis = Crew(agents=[agent], tasks=[task]).kickoff()
+            
+            analysis = llm.call([{"role": "user", "content": task_desc}])
             llm_fields = parse_llm_analysis_to_bug_fields(str(analysis), wi_type)
-        except: pass
+        except Exception as e:
+            logger.error(f"⚠️ AI analysis failed during bug creation: {e}")
+            pass
 
     # 2. Metadata Fallback
     if not severity or severity == "2 - High":
@@ -394,18 +397,23 @@ def execute_bug_creation(
         return {"success": False, "message": str(e)}
 
 
-def process_multiple_bugs(bugs_data: List[Dict], llm_config: dict = None, tfs_config: dict = None) -> Dict:
-    count = 0
-    for b in bugs_data:
-        res = execute_bug_creation(**b, llm_config=llm_config, tfs_config=tfs_config)
-        if res.get('success'): count += 1
-    return {"success": True, "processed": count}
-
-
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def process_multiple_bugs(bugs_data: List[Dict], llm_config: dict = None, tfs_config: dict = None) -> Dict:
+    """
+    Process multiple bugs in parallel for massive speedup.
+    """
     count = 0
-    for b in bugs_data:
-        res = execute_bug_creation(**b, llm_config=llm_config, tfs_config=tfs_config)
-        if res.get('success'): count += 1
+    max_workers = min(10, len(bugs_data)) if len(bugs_data) > 0 else 1
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(execute_bug_creation, **b, llm_config=llm_config, tfs_config=tfs_config) for b in bugs_data]
+        for future in as_completed(futures):
+            try:
+                res = future.result()
+                if res.get('success'):
+                    count += 1
+            except Exception as e:
+                logger.error(f"Error in parallel bug creation: {e}")
+                
     return {"success": True, "processed": count}

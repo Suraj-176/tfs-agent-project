@@ -514,26 +514,38 @@ def execute_dashboard_agent(
     user = tfs_config.get("username")
     pw = tfs_config.get("password")
 
-    # ---- 1. Fetch work items ----------------------------------------
-    def _fetch(qid: str, label: str) -> List[Dict]:
-        if not qid:
-            return []
-        logger.info(f"⏳ Fetching TFS work items for {label} (Query ID: {qid})...")
-        items = fetch_work_items_for_query(
-            project_url=project_url, 
-            pat=pat, 
-            username=user, 
-            password=pw, 
-            query_id=qid, 
-            api_version=api_version
-        )
-        logger.info(f"✅ Fetched {len(items)} items for {label}")
-        return items
+    # ---- 1. Fetch work items (Parallelized for massive speedup) ----
+    import concurrent.futures
+    
+    query_map = {
+        "Bugs": bug_query_id,
+        "Retesting": retest_query_id,
+        "Stories": story_query_id,
+        "Other": other_query_id
+    }
+    
+    fetch_results = {}
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        future_to_label = {
+            executor.submit(fetch_work_items_for_query, project_url, pat, user, pw, qid, api_version): label 
+            for label, qid in query_map.items() if qid
+        }
+        
+        for future in concurrent.futures.as_completed(future_to_label):
+            label = future_to_label[future]
+            try:
+                items = future.result()
+                fetch_results[label] = items
+                logger.info(f"✅ Fetched {len(items)} items for {label}")
+            except Exception as exc:
+                logger.error(f"❌ Dashboard: parallel fetch for {label} failed: {exc}")
+                fetch_results[label] = []
 
-    bug_items    = _fetch(bug_query_id, "Bugs")
-    retest_items = _fetch(retest_query_id, "Retesting")
-    story_items  = _fetch(story_query_id, "Stories")
-    other_items  = _fetch(other_query_id, "Other")
+    bug_items    = fetch_results.get("Bugs", [])
+    retest_items = fetch_results.get("Retesting", [])
+    story_items  = fetch_results.get("Stories", [])
+    other_items  = fetch_results.get("Other", [])
 
     # ---- 2. Summary ------------------------------------------------
     summary = {

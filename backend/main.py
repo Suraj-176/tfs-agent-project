@@ -48,8 +48,29 @@ logging.basicConfig(
     level=logging.INFO,
     handlers=[_file_handler, _console_handler]
 )
-
 logger = logging.getLogger(__name__)
+
+# ==================== High-Speed Metadata Cache ====================
+# Reduces slow TFS network calls by caching common results for 10 minutes
+TFS_METADATA_CACHE = {
+    "iterations": {},  # key: base_url + user
+    "members": {},
+    "queries": {}
+}
+CACHE_TTL = 10  # Minutes
+
+def get_from_cache(category, key):
+    entry = TFS_METADATA_CACHE.get(category, {}).get(key)
+    if entry and datetime.now() < entry["expiry"]:
+        return entry["data"]
+    return None
+
+def save_to_cache(category, key, data):
+    TFS_METADATA_CACHE[category][key] = {
+        "data": data,
+        "expiry": datetime.now() + timedelta(minutes=CACHE_TTL)
+    }
+
 
 # ==================== Cleanup Utilities ====================
 
@@ -1096,6 +1117,11 @@ async def fetch_iteration_on_demand(request: TFSConfigRequest):
     try:
         from .tfs_tool import fetch_current_iteration
         
+        cache_key = f"{request.base_url}:{request.username or request.pat_token}"
+        cached = get_from_cache("iterations", cache_key)
+        if cached:
+            return {"success": True, "iteration_path": cached, "timestamp": datetime.now().isoformat()}
+
         iteration_path = fetch_current_iteration(
             base_url=request.base_url,
             username=request.username,
@@ -1104,6 +1130,7 @@ async def fetch_iteration_on_demand(request: TFSConfigRequest):
         )
         
         if iteration_path:
+            save_to_cache("iterations", cache_key, iteration_path)
             return {
                 "success": True,
                 "iteration_path": iteration_path,

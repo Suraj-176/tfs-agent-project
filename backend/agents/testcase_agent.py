@@ -107,8 +107,10 @@ def execute_testcase_generation(
         default_functional = PromptsManager.get_functional_prompt()
         default_ui = PromptsManager.get_ui_prompt()
 
-        task = Task(
-            description=f"""
+        # SPEED OPTIMIZATION: Use direct LLM call instead of Crew
+        # CrewAI adds overhead for task/agent lifecycle. Direct call is much faster for JSON generation.
+        llm = get_configured_llm(llm_config)
+        prompt = f"""
 Generate comprehensive QA test cases ({scope_block}) for the following:
 {story}
 {sop_block}
@@ -132,13 +134,9 @@ Strict Rules:
 - Return ONLY the JSON array.
 - No markdown formatting like ```json.
 - No conversational text.
-""",
-            agent=agent,
-            expected_output="A valid JSON array of test case objects."
-        )
+"""
         
-        crew = Crew(agents=[agent], tasks=[task], verbose=True)
-        raw_result = str(crew.kickoff()).strip()
+        raw_result = str(llm.call([{"role": "user", "content": prompt}])).strip()
 
         # Clean JSON if Agent wrapped it in blocks
         if "```" in raw_result:
@@ -161,17 +159,21 @@ Strict Rules:
         # Convert structured data to the Grid Format the UI needs
         grid_markdown = json_to_markdown_grid(tc_data)
 
-        # Optional: Still run reviewer for "sanity" (now much faster)
-        logger.info("🛠️ Validating final grid format...")
-        review_result = execute_code_review(grid_markdown, llm_config)
-        
-        final_output = review_result.get("result", grid_markdown)
+        # Optimization: Only run reviewer if grid format looks broken (simple heuristic check)
+        # Previously we always ran it, which was slow.
+        if "|" not in grid_markdown or "---" not in grid_markdown:
+            logger.info("🛠️ Grid format looks broken, running self-healing...")
+            review_result = execute_code_review(grid_markdown, llm_config)
+            final_output = review_result.get("result", grid_markdown)
+        else:
+            logger.info("✅ Grid format validated locally, skipping AI review for speed")
+            final_output = grid_markdown
 
         return {
             "status": "success",
             "result": final_output,
             "json_data": tc_data,
-            "agent": "Test Case Designer (Dual-Engine)"
+            "agent": "Test Case Designer (High-Speed)"
         }
     
     except Exception as e:

@@ -350,6 +350,8 @@ def process_single_task(
         return {"status": "failed", "reason": str(e), "report": TaskReport("", "", task_title, status="Failed", reason=str(e), iteration_path=iteration_path)}
 
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 def process_task_batch(
     excel_file: str,
     iteration_path: str,
@@ -381,23 +383,35 @@ def process_task_batch(
         report_rows = []
         errors = []
         
-        for _, row in df.iterrows():
-            try:
-                result = process_single_task(row, iteration_path=iteration_path, skip_duplicates=skip_duplicates, base_url=base_url, pat=pat_token, username=username, password=password, domain=domain, default_assigned_to=default_assigned_to, logger_func=logger_func, mode=mode)
-                
-                if result["status"] in ["created", "updated"]:
-                    success_count += 1
-                    created_ids.append(result["task_id"])
-                elif result["status"] == "skipped":
-                    skipped_count += 1
-                else:
+        # Parallel execution for speed
+        max_workers = min(10, len(df)) if len(df) > 0 else 1
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = []
+            for _, row in df.iterrows():
+                futures.append(executor.submit(
+                    process_single_task, 
+                    row, iteration_path=iteration_path, skip_duplicates=skip_duplicates, 
+                    base_url=base_url, pat=pat_token, username=username, 
+                    password=password, domain=domain, default_assigned_to=default_assigned_to, 
+                    logger_func=logger_func, mode=mode
+                ))
+            
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                    if result["status"] in ["created", "updated"]:
+                        success_count += 1
+                        created_ids.append(result["task_id"])
+                    elif result["status"] == "skipped":
+                        skipped_count += 1
+                    else:
+                        failed_count += 1
+                        errors.append(result.get("reason", "Unknown error"))
+                    
+                    report_rows.append(result["report"])
+                except Exception as e:
                     failed_count += 1
-                    errors.append(result.get("reason", "Unknown error"))
-                
-                report_rows.append(result["report"])
-            except Exception as e:
-                failed_count += 1
-                errors.append(str(e))
+                    errors.append(str(e))
         
         return {
             "status": "success" if failed_count == 0 else "partial",
