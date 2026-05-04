@@ -6749,8 +6749,12 @@ function newExecution() {
   // === Agent 1: Task Creation - clear inputs ===
   const excelFile = document.getElementById('excel-file');
   if (excelFile) excelFile.value = '';
+  // Do NOT clear iteration path - preserve it for user convenience
   const iterationPath = document.getElementById('iteration-path');
-  if (iterationPath) iterationPath.value = '';
+  const cachedIteration = (sessionStorage.getItem('manual_iteration_path') || '').trim();
+  if (iterationPath && !iterationPath.value && cachedIteration) {
+    iterationPath.value = cachedIteration;
+  }
 
   // === Agent 2: Test Case - clear inputs ===
   const workItemId = document.getElementById('work-item-id');
