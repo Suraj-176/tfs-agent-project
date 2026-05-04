@@ -144,15 +144,30 @@ def get_configured_llm(llm_config: dict = None):
         # Ensure we have a valid deployment name
         deployment = llm_config.get('deployment_name') or llm_config.get('model') or 'gpt-4'
         endpoint = (llm_config.get('endpoint') or "").strip()
+        # Remove trailing slash if present as it can confuse some libraries
+        if endpoint.endswith('/'):
+            endpoint = endpoint[:-1]
+            
         api_key = (llm_config.get('api_key') or "").strip()
         api_version = (llm_config.get('api_version') or "").strip()
         
         # Set environment variables as a robust fallback for libraries that check them
-        os.environ["AZURE_OPENAI_ENDPOINT"] = endpoint
-        os.environ["AZURE_ENDPOINT"] = endpoint
-        os.environ["AZURE_OPENAI_API_KEY"] = api_key
-        os.environ["AZURE_OPENAI_API_VERSION"] = api_version
+        # We set multiple variations to cover all possible library versions (LiteLLM, OpenAI v0, OpenAI v1)
+        envs = {
+            "AZURE_OPENAI_ENDPOINT": endpoint,
+            "AZURE_ENDPOINT": endpoint,
+            "AZURE_OPENAI_API_BASE": endpoint,
+            "AZURE_API_BASE": endpoint,
+            "AZURE_OPENAI_API_KEY": api_key,
+            "AZURE_API_KEY": api_key,
+            "OPENAI_API_KEY": api_key, # Some libs fallback to this even for Azure
+            "AZURE_OPENAI_API_VERSION": api_version,
+            "AZURE_API_VERSION": api_version
+        }
         
+        for k, v in envs.items():
+            os.environ[k] = v
+            
         return LLM(
             model=f"azure/{deployment}",
             api_key=api_key,
@@ -189,4 +204,13 @@ def get_configured_llm(llm_config: dict = None):
         )
     
     raise ValueError(f"Unknown provider: {provider}")
+
+
+def get_llm_client(llm_config: dict = None):
+    """
+    Returns an LLM client that can be called directly.
+    Wraps get_configured_llm but provides a unified .call() interface.
+    """
+    llm = get_configured_llm(llm_config)
+    return llm
 

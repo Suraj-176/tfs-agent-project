@@ -3224,49 +3224,7 @@ async def chat_story(request: StoryChatRequest):
         }
 
 
-def apply_self_healing(result: dict, llm_config: Optional[Dict] = None, agent_name: str = "Agent") -> dict:
-    """
-    Apply self-healing (code review) to agent output without modifying agent code
-    
-    Args:
-        result: Agent execution result dict with 'status' and 'result' keys
-        llm_config: Optional LLM configuration for self-healing
-        agent_name: Name of the agent for logging
-    
-    Returns:
-        Modified result dict with reviewed content
-    """
-    if not llm_config or not result.get("result"):
-        return result
-    
-    try:
-        from backend.llm_config import get_llm_client
-        client = get_llm_client(llm_config)
-        
-        # Self-heal prompt focuses on quality, not modification
-        heal_prompt = f"""Review this {agent_name} output and provide constructive feedback:
-{result.get('result', '')}
-
-Provide a brief professional review (max 3 sentences)."""
-        
-        response = client.create_message(heal_prompt)
-        return {
-            **result,
-            "reviewed": response
-        }
-    except Exception as e:
-        logger.debug(f"ℹ️ Self-healing not available: {str(e)}")
-        return result
-        if temp_dir and os.path.exists(temp_dir):
-            try:
-                shutil.rmtree(temp_dir)
-            except Exception:
-                pass
-
-
-
 # ==================== Background Tasks ====================
-
 def apply_self_healing(result: dict, llm_config: Optional[Dict] = None, agent_name: str = "Agent") -> dict:
     """
     Apply self-healing (code review) to agent output without modifying agent code
