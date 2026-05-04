@@ -1031,6 +1031,27 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<script src="js/app.js?v=17"></script>
+<script src="js/app.js?v=19" defer></script>
+<script>
+  // Fallback placeholder functions to prevent errors during load
+  if (typeof selectAgent === 'undefined') {
+    window.selectAgent = function(agentId, cardElement) {
+      console.warn('selectAgent called before script loaded, retrying...');
+      setTimeout(() => window.selectAgent(agentId, cardElement), 100);
+    };
+  }
+  if (typeof openTFSModal === 'undefined') {
+    window.openTFSModal = function() {
+      console.warn('openTFSModal called before script loaded, retrying...');
+      setTimeout(() => window.openTFSModal(), 100);
+    };
+  }
+  if (typeof openLLMModal === 'undefined') {
+    window.openLLMModal = function() {
+      console.warn('openLLMModal called before script loaded, retrying...');
+      setTimeout(() => window.openLLMModal(), 100);
+    };
+  }
+</script>
 </body>
 </html>
