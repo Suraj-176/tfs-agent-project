@@ -62,12 +62,16 @@ TFS_METADATA_CACHE = {
 CACHE_TTL = 10  # Minutes
 
 def get_from_cache(category, key):
+    if category not in TFS_METADATA_CACHE:
+        TFS_METADATA_CACHE[category] = {}
     entry = TFS_METADATA_CACHE.get(category, {}).get(key)
     if entry and datetime.now() < entry["expiry"]:
         return entry["data"]
     return None
 
 def save_to_cache(category, key, data):
+    if category not in TFS_METADATA_CACHE:
+        TFS_METADATA_CACHE[category] = {}
     TFS_METADATA_CACHE[category][key] = {
         "data": data,
         "expiry": datetime.now() + timedelta(minutes=CACHE_TTL)
