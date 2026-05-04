@@ -1,5 +1,12 @@
 ﻿console.log('✅ app.js loaded successfully');
 
+// ==================== Error Handling & Protection ====================
+// Ensure functions are globally accessible and have error handling
+const handleError = (fnName, error) => {
+  console.error(`❌ Error in ${fnName}:`, error);
+  showToast?.(`❌ Error: ${fnName} failed`);
+};
+
 // ==================== Toast Notification ====================
 
 function copyToClipboard(text) {
@@ -92,6 +99,71 @@ let selectedSuiteId = null;
 let newSuiteName = null;
 let isFetchingPlans = false;
 let isFetchingSuites = false;
+
+// === Bug Agent Global State ===
+let bugAgentState = {
+    wiType: 'Bug',
+    updateMode: false,
+    currentScreenshots: [],
+    formScreenshots: [],
+    history: [],
+    states: {
+        'Bug': { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
+        'Feature': { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
+        'User Story': { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' }
+    },
+    dropdowns: {
+        area: [],
+        iteration: [],
+        members: []
+    }
+};
+let bugTags = [];
+let selectedScreenshots = [];
+let existingBugIdForUpdate = null;
+let storyChatHistory = [];
+let testCaseChatHistory = [];
+let lastReviewText = "";
+
+// === Dashboard Agent Global State ===
+let _dashQueries = [];
+const DASHBOARD_DEFAULT_PROMPT = `### ROLE:
+Act as a Senior Strategic QA Director (20+ years experience). Provide a high-impact, executive-level strategic analysis of the project's quality health.
+
+### DATASETS FOR ANALYSIS:
+- TFS ACTIVITY SUMMARY: {tfs_summary}
+- VERTICAL VALIDATION REPORT: {vertical_report}
+- AUTOMATION COVERAGE REPORT: {automation_report}
+- PERFORMANCE REPORT: {performance_report}
+
+### OUTPUT STRUCTURE & STYLE:
+Your response MUST be professional and highly readable.
+- USE **BOLD CAPITALIZED HEADINGS** for main sections.
+- USE *Italicized Title Case* for sub-headings.
+- USE standard bullets (• or -) or numbers (1, 2, 3) for points.
+- DO NOT use "## **" or "### **" combinations.
+
+1. **EXECUTIVE SUMMARY**
+   Provide a 2-sentence high-level summary. Start with a clear "Quality Status" (e.g., EXCELLENT, STABLE, AT RISK, CRITICAL).
+
+2. **KEY QUALITY INDICATORS (KQIs)**
+   *Correlation Analysis*
+   Briefly interpret the correlation between TFS activity, vertical validation, and automation.
+
+3. **TOP STRATEGIC RISKS**
+   *Risk 1: [Title]*
+   Root Cause analysis and Potential Impact based on the data.
+   *Risk 2: [Title]*
+   Root Cause analysis and Potential Impact.
+
+4. **ACTIONABLE ROADMAP**
+   *Prioritized Actions*
+   Provide 3 high-priority recommendations with clear owners.
+
+5. **CONFIDENCE SCORE**
+   Rate from 0 to 100. Provide a one-sentence justification.
+
+Keep the tone professional, authoritative, and focused on delivery excellence.`;
 
 const PLAN_CACHE_TTL_MS = 3 * 60 * 1000;
 const SUITE_CACHE_TTL_MS = 3 * 60 * 1000;
@@ -340,9 +412,6 @@ document.addEventListener('click', (e) => {
 });
 
 // ==================== Bug Creation State ====================
-
-let bugTags = [];
-let selectedScreenshots = [];
 
 function toggleBugTag(button, tag) {
   if (bugTags.includes(tag)) {
@@ -1290,8 +1359,6 @@ function getLLMConfig() {
 
 // ==================== Bug Fetch & Update Logic ====================
 
-let existingBugIdForUpdate = null; // Track if updating an existing bug
-
 async function fetchExistingBugDetails() {
   const bugIdInput = document.getElementById('bug-existing-id-input');
   const bugId = bugIdInput.value.trim();
@@ -1575,25 +1642,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function checkHealth() {
-  const healthStatus = document.getElementById('health-status');
-  const healthEmoji = document.getElementById('health-emoji');
-  if (!healthStatus) return;
-  
-  healthStatus.textContent = 'Checking...';
-  addDebugLog('🔍 System health check started');
-  
-  fetch(`${API_BASE}/health`)
-    .then(r => r.json())
-    .then(data => {
-      healthStatus.textContent = 'Ready';
-      if (healthEmoji) healthEmoji.textContent = '💚';
-      addDebugLog('✅ System health: Ready');
-    })
-    .catch(err => {
-      healthStatus.textContent = 'Offline';
-      if (healthEmoji) healthEmoji.textContent = '❌';
-      addDebugLog('⚠️ System health check timeout');
-    });
+  try {
+    const healthStatus = document.getElementById('health-status');
+    const healthEmoji = document.getElementById('health-emoji');
+    if (!healthStatus) return;
+    
+    healthStatus.textContent = 'Checking...';
+    if (typeof addDebugLog === 'function') {
+      addDebugLog('🔍 System health check started');
+    }
+    
+    fetch(`${API_BASE}/health`)
+      .then(r => r.json())
+      .then(data => {
+        healthStatus.textContent = 'Ready';
+        if (healthEmoji) healthEmoji.textContent = '💚';
+        if (typeof addDebugLog === 'function') {
+          addDebugLog('✅ System health: Ready');
+        }
+      })
+      .catch(err => {
+        healthStatus.textContent = 'Offline';
+        if (healthEmoji) healthEmoji.textContent = '❌';
+        if (typeof addDebugLog === 'function') {
+          addDebugLog('⚠️ System health check timeout');
+        }
+      });
+  } catch (error) {
+    handleError('checkHealth', error);
+  }
 }
 
 // ==================== Helper Functions ====================
@@ -1621,11 +1698,20 @@ function closeAllTopModals(exceptId = null) {
 }
 
 function openTFSModal() {
-  closeAllTopModals('tfs-modal');
-  const modal = document.getElementById('tfs-modal');
-  if (modal) {
-    modal.style.display = 'flex';
-    addDebugLog('📂 TFS Configuration modal opened');
+  try {
+    closeAllTopModals('tfs-modal');
+    const modal = document.getElementById('tfs-modal');
+    if (modal) {
+      modal.style.display = 'flex';
+      if (typeof addDebugLog === 'function') {
+        addDebugLog('📂 TFS Configuration modal opened');
+      }
+      console.log('✅ openTFSModal executed successfully');
+    } else {
+      console.error('TFS modal element not found');
+    }
+  } catch (error) {
+    handleError('openTFSModal', error);
   }
 }
 
@@ -1960,11 +2046,20 @@ function loadTFSConfig() {
 // ==================== LLM Modal ====================
 
 function openLLMModal() {
-  closeAllTopModals('llm-modal');
-  const modal = document.getElementById('llm-modal');
-  if (modal) {
-    modal.style.display = 'flex';
-    addDebugLog('⚙️ AI Provider Configuration modal opened');
+  try {
+    closeAllTopModals('llm-modal');
+    const modal = document.getElementById('llm-modal');
+    if (modal) {
+      modal.style.display = 'flex';
+      if (typeof addDebugLog === 'function') {
+        addDebugLog('⚙️ AI Provider Configuration modal opened');
+      }
+      console.log('✅ openLLMModal executed successfully');
+    } else {
+      console.error('LLM modal element not found');
+    }
+  } catch (error) {
+    handleError('openLLMModal', error);
   }
 }
 
@@ -1979,13 +2074,22 @@ function closeLLMModal() {
 // ==================== User Guide Modal ====================
 
 function openGuideModal() {
-  closeAllTopModals('guide-modal');
-  const modal = document.getElementById('guide-modal');
-  if (modal) {
-    modal.style.display = 'flex';
-    // Initialize to the setup tab
-    switchHelpTab('setup', document.querySelector('.help-nav-item'));
-    addDebugLog('📖 Documentation Dashboard opened');
+  try {
+    closeAllTopModals('guide-modal');
+    const modal = document.getElementById('guide-modal');
+    if (modal) {
+      modal.style.display = 'flex';
+      // Initialize to the setup tab
+      switchHelpTab('setup', document.querySelector('.help-nav-item'));
+      if (typeof addDebugLog === 'function') {
+        addDebugLog('📖 Documentation Dashboard opened');
+      }
+      console.log('✅ openGuideModal executed successfully');
+    } else {
+      console.error('Guide modal element not found');
+    }
+  } catch (error) {
+    handleError('openGuideModal', error);
   }
 }
 
@@ -2283,27 +2387,34 @@ function loadLLMConfig() {
 // ==================== Agent Selection ====================
 
 function selectAgent(agentId, cardElement) {
-  console.log('Agent selected:', agentId);
-  let agentName = agentId === 'task-creation' ? 'Task Creation' : (agentId === 'bug-creation' ? 'Bug Creation' : (agentId === 'dashboard' ? 'Dashboard' : 'Test Case Generator'));
-  addDebugLog(`🤖 Agent selected: ${agentName}`);
-  
-  currentAgent = agentId;
-  
-  // Update UI
-  document.querySelectorAll('.agent-card').forEach(card => {
-    card.style.background = '';
-    card.style.borderColor = '';
-  });
-  
-  if (cardElement) {
-    cardElement.style.background = '#f0f9ff';
-    cardElement.style.borderColor = '#0284c7';
-  }
-  
-  // Enable continue button
-  const continueBtn = document.getElementById('btn-continue');
-  if (continueBtn) {
-    continueBtn.disabled = false;
+  try {
+    console.log('Agent selected:', agentId);
+    let agentName = agentId === 'task-creation' ? 'Task Creation' : (agentId === 'bug-creation' ? 'Bug Creation' : (agentId === 'dashboard' ? 'Dashboard' : 'Test Case Generator'));
+    if (typeof addDebugLog === 'function') {
+      addDebugLog(`🤖 Agent selected: ${agentName}`);
+    }
+    
+    currentAgent = agentId;
+    
+    // Update UI
+    document.querySelectorAll('.agent-card').forEach(card => {
+      card.style.background = '';
+      card.style.borderColor = '';
+    });
+    
+    if (cardElement) {
+      cardElement.style.background = '#f0f9ff';
+      cardElement.style.borderColor = '#0284c7';
+    }
+    
+    // Enable continue button
+    const continueBtn = document.getElementById('btn-continue');
+    if (continueBtn) {
+      continueBtn.disabled = false;
+    }
+    console.log(`✅ selectAgent executed successfully for: ${agentId}`);
+  } catch (error) {
+    handleError('selectAgent', error);
   }
 }
 
@@ -2940,44 +3051,6 @@ function switchInputMethod(method) {
 
 // ==================== Dashboard Agent Helpers (Agent #4) ====================
 
-const DASHBOARD_DEFAULT_PROMPT = `### ROLE:
-Act as a Senior Strategic QA Director (20+ years experience). Provide a high-impact, executive-level strategic analysis of the project's quality health.
-
-### DATASETS FOR ANALYSIS:
-- TFS ACTIVITY SUMMARY: {tfs_summary}
-- VERTICAL VALIDATION REPORT: {vertical_report}
-- AUTOMATION COVERAGE REPORT: {automation_report}
-- PERFORMANCE REPORT: {performance_report}
-
-### OUTPUT STRUCTURE & STYLE:
-Your response MUST be professional and highly readable.
-- USE **BOLD CAPITALIZED HEADINGS** for main sections.
-- USE *Italicized Title Case* for sub-headings.
-- USE standard bullets (• or -) or numbers (1, 2, 3) for points.
-- DO NOT use "## **" or "### **" combinations.
-
-1. **EXECUTIVE SUMMARY**
-   Provide a 2-sentence high-level summary. Start with a clear "Quality Status" (e.g., EXCELLENT, STABLE, AT RISK, CRITICAL).
-
-2. **KEY QUALITY INDICATORS (KQIs)**
-   *Correlation Analysis*
-   Briefly interpret the correlation between TFS activity, vertical validation, and automation.
-
-3. **TOP STRATEGIC RISKS**
-   *Risk 1: [Title]*
-   Root Cause analysis and Potential Impact based on the data.
-   *Risk 2: [Title]*
-   Root Cause analysis and Potential Impact.
-
-4. **ACTIONABLE ROADMAP**
-   *Prioritized Actions*
-   Provide 3 high-priority recommendations with clear owners.
-
-5. **CONFIDENCE SCORE**
-   Rate from 0 to 100. Provide a one-sentence justification.
-
-Keep the tone professional, authoritative, and focused on delivery excellence.`;
-
 function dashModeChanged(value) {
   const promptSection = document.getElementById('dash-prompt-section');
   if (promptSection) {
@@ -3003,7 +3076,6 @@ function dashUseDefaultPrompt() {
 }
 
 // Store loaded queries for filtering
-let _dashQueries = [];
 
 async function dashLoadQueries() {
   const statusEl = document.getElementById('dash-query-load-status');
@@ -5268,23 +5340,27 @@ function updateStepIndicator(step) {
 }
 
 function goHome() {
-  showPanel('panel-agent-select');
-  updateStepIndicator(1);
-  currentAgent = null;
-  
-  // Reset agent selection UI
-  document.querySelectorAll('.agent-card').forEach(card => {
-    card.style.background = '';
-    card.style.borderColor = '';
-  });
-  
-  const continueBtn = document.getElementById('btn-continue');
-  if (continueBtn) {
-    continueBtn.disabled = true;
-    continueBtn.textContent = 'Select an agent to continue →';
-  }
-  
-  addDebugLog('🏠 Navigated to home page');
+  try {
+    showPanel('panel-agent-select');
+    updateStepIndicator(1);
+    currentAgent = null;
+    
+    // Reset agent selection UI
+    document.querySelectorAll('.agent-card').forEach(card => {
+      card.style.background = '';
+      card.style.borderColor = '';
+    });
+    
+    const continueBtn = document.getElementById('btn-continue');
+    if (continueBtn) {
+      continueBtn.disabled = true;
+      continueBtn.textContent = 'Select an agent to continue →';
+    }
+    
+    if (typeof addDebugLog === 'function') {
+      addDebugLog('🏠 Navigated to home page');
+    }
+    console.log('✅ goHome executed successfully');
   updateConfigurationStatus();
 }
 
@@ -8493,25 +8569,6 @@ console.log('✅ All functions loaded');
 addDebugLog('✅ TFS Agent Hub initialized');
 
 // ==================== Agent 3: Bug, Feature & User Story Agent Logic ====================
-
-let bugAgentState = {
-    wiType: 'Bug',
-    updateMode: false,
-    currentScreenshots: [],
-    formScreenshots: [],
-    history: [],
-    states: {
-        'Bug': { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
-        'Feature': { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' },
-        'User Story': { workItemId: '', title: '', description: '', formScreenshots: [], history: [], chatHTML: '' }
-    },
-    dropdowns: {
-        area: [],
-        iteration: [],
-        members: [],
-        stories: []
-    }
-};
 
 async function initBugAgentState() {
     addDebugLog('🔄 Initializing Bug, Feature & User Story Agent state...');
