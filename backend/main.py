@@ -53,8 +53,10 @@ logger = logging.getLogger(__name__)
 # ==================== High-Speed Metadata Cache ====================
 # Reduces slow TFS network calls by caching common results for 10 minutes
 TFS_METADATA_CACHE = {
-    "iterations": {},  # key: base_url + user
+    "iterations": {},  # List of all iterations
+    "current_iteration": {}, # Just the current iteration string
     "members": {},
+    "areas": {},
     "queries": {}
 }
 CACHE_TTL = 10  # Minutes
@@ -1118,7 +1120,7 @@ async def fetch_iteration_on_demand(request: TFSConfigRequest):
         from .tfs_tool import fetch_current_iteration
         
         cache_key = f"{request.base_url}:{request.username or request.pat_token}"
-        cached = get_from_cache("iterations", cache_key)
+        cached = get_from_cache("current_iteration", cache_key)
         if cached:
             return {"success": True, "iteration_path": cached, "timestamp": datetime.now().isoformat()}
 
@@ -1130,7 +1132,7 @@ async def fetch_iteration_on_demand(request: TFSConfigRequest):
         )
         
         if iteration_path:
-            save_to_cache("iterations", cache_key, iteration_path)
+            save_to_cache("current_iteration", cache_key, iteration_path)
             return {
                 "success": True,
                 "iteration_path": iteration_path,
@@ -1159,6 +1161,18 @@ async def fetch_iteration_list_on_demand(request: TFSConfigRequest):
     """Fetch all available iteration paths from TFS."""
     try:
         from .tfs_tool import fetch_iteration_options
+        
+        cache_key = f"{request.base_url}:{request.username or request.pat_token}"
+        cached = get_from_cache("iterations", cache_key)
+        if cached:
+            logger.info(f"⚡ Returning cached iterations for {request.base_url}")
+            current = next((row.get("path") for row in cached if row.get("time_frame") == "current"), None)
+            return {
+                "success": True, 
+                "iterations": cached, 
+                "current_iteration": current,
+                "timestamp": datetime.now().isoformat()
+            }
 
         options = fetch_iteration_options(
             base_url=request.base_url,
@@ -1166,6 +1180,9 @@ async def fetch_iteration_list_on_demand(request: TFSConfigRequest):
             password=request.password,
             pat=request.pat_token
         )
+
+        if options:
+            save_to_cache("iterations", cache_key, options)
 
         current = next((row.get("path") for row in options if row.get("time_frame") == "current"), None)
         return {
@@ -1177,10 +1194,11 @@ async def fetch_iteration_list_on_demand(request: TFSConfigRequest):
     except Exception as e:
         return {
             "success": False,
-            "iterations": [],
-            "message": f"Failed to fetch iteration list: {str(e)}",
-            "timestamp": datetime.now().isoformat(),
+            "iteration_path": None,
+            "error": f"Failed to fetch iteration: {str(e)}",
+            "timestamp": datetime.now().isoformat()
         }
+
 
 
 @app.post("/api/tfs/areas")
@@ -1188,6 +1206,12 @@ async def fetch_area_list_on_demand(request: TFSConfigRequest):
     """Fetch all available area paths from TFS."""
     try:
         from .tfs_tool import fetch_area_options
+        
+        cache_key = f"{request.base_url}:{request.username or request.pat_token}"
+        cached = get_from_cache("areas", cache_key)
+        if cached:
+            logger.info(f"⚡ Returning cached areas for {request.base_url}")
+            return {"success": True, "areas": cached, "timestamp": datetime.now().isoformat()}
 
         areas = fetch_area_options(
             base_url=request.base_url,
@@ -1195,6 +1219,9 @@ async def fetch_area_list_on_demand(request: TFSConfigRequest):
             password=request.password,
             pat=request.pat_token
         )
+
+        if areas:
+            save_to_cache("areas", cache_key, areas)
 
         return {
             "success": len(areas) > 0,
@@ -1205,7 +1232,7 @@ async def fetch_area_list_on_demand(request: TFSConfigRequest):
         return {
             "success": False,
             "areas": [],
-            "message": f"Failed to fetch area list: {str(e)}",
+            "error": f"Failed to fetch area list: {str(e)}",
             "timestamp": datetime.now().isoformat(),
         }
 

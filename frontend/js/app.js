@@ -2788,6 +2788,7 @@ function populateConfigForm(agentId) {
         <div style="font-size:1rem;font-weight:700;color:#b45309;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
           <span>1.</span> TFS QA Activity Queries
         </div>
+        
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
           <div class="config-row" style="margin-bottom:0;">
             <label style="font-size:var(--fs-sm);font-weight:var(--fw-semibold);color:var(--ink);">Bug Query</label>
@@ -2899,7 +2900,9 @@ function populateConfigForm(agentId) {
     // Use already-loaded queries if available, otherwise trigger a load
     if (_dashQueries.length > 0) {
       const statusEl = document.getElementById('dash-query-load-status');
-      if (statusEl) statusEl.textContent = `✅ ${_dashQueries.length} queries loaded — click a field to select or type to filter`;
+      if (statusEl) {
+          statusEl.innerHTML = `✅ ${_dashQueries.length} queries loaded — click a field to select or type to filter <span onclick="dashLoadQueries()" title="Refresh" style="cursor:pointer;margin-left:8px;font-weight:bold;color:#b45309;font-size:1.1rem;">↻</span>`;
+      }
     } else {
       dashLoadQueries();
     }
@@ -3034,7 +3037,7 @@ async function dashLoadQueries() {
             password: tfs.password || ''
           }
         })
-      }, 8000);
+      }, 60000);
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
@@ -3044,9 +3047,11 @@ async function dashLoadQueries() {
     const data = await resp.json();
     _dashQueries = data.queries || [];
 
-    if (statusEl) statusEl.textContent = _dashQueries.length
-      ? `✅ ${_dashQueries.length} queries loaded — click a field to select or type to filter`
-      : '⚠️ No saved queries found in TFS project';
+    if (statusEl) {
+      statusEl.innerHTML = _dashQueries.length > 0
+        ? `✅ ${_dashQueries.length} queries loaded — click a field to select or type to filter <span onclick="dashLoadQueries()" title="Refresh" style="cursor:pointer;margin-left:8px;font-weight:bold;color:#b45309;font-size:1.1rem;">↻</span>`
+        : `⚠️ No saved queries found in TFS project <span onclick="dashLoadQueries()" title="Refresh" style="cursor:pointer;margin-left:8px;font-weight:bold;color:#b45309;font-size:1.1rem;">↻</span>`;
+    }
 
     addDebugLog(`Dashboard: ${_dashQueries.length} queries loaded`);
   } catch (err) {
@@ -3975,7 +3980,7 @@ async function fetchIterationPathStep2(isAuto = false) {
     const data = await response.json();
     
     if (response.ok && data.success !== false) {
-      const loaded = (data.iteration_path || '').trim();
+      const loaded = String(data.iteration_path || '').trim();
       if (loaded) {
         iterationPathField.value = loaded;
         cacheIterationPath(loaded);
@@ -8576,6 +8581,19 @@ async function fetchDropdownData(type, endpoint) {
         const tfs = getEffectiveTFSConfig();
         if (!tfs.base_url) return;
         
+        // SPEED OPTIMIZATION: Check client-side cache first
+        const cacheKey = `cache_${type}_${tfs.base_url}`;
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+            const data = JSON.parse(cached);
+            if (type === 'area') bugAgentState.dropdowns.area = data;
+            if (type === 'iteration') bugAgentState.dropdowns.iteration = data;
+            if (type === 'members') bugAgentState.dropdowns.members = data;
+            if (type === 'stories') bugAgentState.dropdowns.stories = data;
+            console.log(`⚡ Using cached ${type} data`);
+            return;
+        }
+
         const response = await fetch(API_BASE + endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -8583,10 +8601,19 @@ async function fetchDropdownData(type, endpoint) {
         });
         const data = await response.json();
         if (data.success) {
-            if (type === 'area') bugAgentState.dropdowns.area = data.areas || [];
-            if (type === 'iteration') bugAgentState.dropdowns.iteration = data.iterations || [];
-            if (type === 'members') bugAgentState.dropdowns.members = data.members || [];
-            if (type === 'stories') bugAgentState.dropdowns.stories = data.work_items || [];
+            let list = [];
+            if (type === 'area') list = data.areas || [];
+            if (type === 'iteration') list = data.iterations || [];
+            if (type === 'members') list = data.members || [];
+            if (type === 'stories') list = data.work_items || [];
+
+            if (type === 'area') bugAgentState.dropdowns.area = list;
+            if (type === 'iteration') bugAgentState.dropdowns.iteration = list;
+            if (type === 'members') bugAgentState.dropdowns.members = list;
+            if (type === 'stories') bugAgentState.dropdowns.stories = list;
+
+            // Save to cache (valid for current session)
+            sessionStorage.setItem(cacheKey, JSON.stringify(list));
             addDebugLog(`✅ Loaded ${type} dropdown data`);
         } else {
             console.warn(`⚠️ Failed to load ${type} data:`, data.error || 'Unknown error');

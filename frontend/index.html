@@ -553,16 +553,9 @@
             <option value="">-- Select a Plan --</option>
           </select>
           <button
-            class="btn-secondary"
-            onclick="refreshTestPlans(true)"
-            style="padding:8px 12px; font-size:0.85rem; height:40px; display:flex; align-items:center; gap:6px; border-color:#7dd3fc; color:#0c4a6e;"
-          >
-            <span>🔍</span> Fetch
-          </button>
-          <button
             id="plan-refresh-btn"
             type="button"
-            onclick="refreshTestPlans(true)"
+            onclick="fetchAvailablePlans()"
             title="Refresh plans"
             style="width:40px;height:40px;border:1px solid #7dd3fc;border-radius:6px;background:#ffffff;color:#0c4a6e;cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;"
           >↻</button>

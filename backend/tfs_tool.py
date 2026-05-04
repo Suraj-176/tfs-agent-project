@@ -13,12 +13,14 @@ import sys
 from pathlib import Path
 from requests_ntlm import HttpNtlmAuth
 
+import functools
+
 # Global session pool for NTLM to prevent slow repeated handshakes
 _TFS_SESSIONS = {}
 
 def _get_tfs_session(username, password, pat=None):
     """Get or create a pooled requests session for TFS."""
-    key = f"{username}:{password}:{pat}"
+    key = f"{(username or '').strip()}:{(password or '').strip()}:{(pat or '').strip()}"
     if key not in _TFS_SESSIONS:
         session = requests.Session()
         if pat:
@@ -27,6 +29,13 @@ def _get_tfs_session(username, password, pat=None):
             session.auth = HttpNtlmAuth(username, password)
         _TFS_SESSIONS[key] = session
     return _TFS_SESSIONS[key]
+
+def _tfs_request(method, url, username=None, password=None, pat=None, **kwargs):
+    """Internal helper to execute a TFS request using pooled sessions."""
+    session = _get_tfs_session(username, password, pat)
+    if 'timeout' not in kwargs: kwargs['timeout'] = 30
+    if 'verify' not in kwargs: kwargs['verify'] = False
+    return session.request(method, url, **kwargs)
 
 # Ensure logging is configured and get logger
 log_dir = Path(__file__).parent.parent / "logs"
@@ -341,7 +350,7 @@ def _split_collection_and_project(url_value: str) -> tuple[str, str]:
 
 def _discover_projects(collection_base: str, auth, headers) -> list[str]:
     try:
-        res = requests.get(
+        res = _tfs_request('GET', 
             f"{collection_base}/_apis/projects",
             params={"api-version": "6.0"},
             auth=auth,
@@ -370,7 +379,7 @@ def _fetch_team_iterations(url_base: str, project_name: str, auth, headers) -> l
     for endpoint in candidate_urls:
         for api_version in api_versions:
             try:
-                res = requests.get(
+                res = _tfs_request('GET', 
                     endpoint,
                     params={"api-version": api_version},
                     auth=auth,
@@ -391,7 +400,7 @@ def _fetch_classification_iterations(url_base: str, project_name: str, auth, hea
     api_versions = ["6.0", "5.1"]
     for api_version in api_versions:
         try:
-            res = requests.get(
+            res = _tfs_request('GET', 
                 f"{url_base}/{project_name}/_apis/wit/classificationnodes/iterations",
                 params={"api-version": api_version, "$depth": 10},
                 auth=auth,
@@ -577,7 +586,7 @@ def fetch_area_options(base_url: str = None, username: str = None, password: str
             api_versions = ["6.0", "5.1"]
             for api_version in api_versions:
                 try:
-                    res = requests.get(
+                    res = _tfs_request('GET', 
                         f"{collection_base}/{project_name}/_apis/wit/classificationnodes/areas",
                         params={"api-version": api_version, "$depth": 10},
                         auth=auth,
@@ -654,7 +663,7 @@ def upload_attachment(
     headers = (headers or {}).copy()
     headers["Content-Type"] = "application/octet-stream"
     
-    response = requests.post(
+    response = _tfs_request('POST', 
         url,
         auth=auth,
         headers=headers,
@@ -696,7 +705,7 @@ def remove_all_attachments(
         url = f"{url_base}/_apis/wit/workitems/{work_item_id}?api-version=6.0&$expand=Relations"
         auth, headers = _get_auth_and_headers(username, password, pat)
         
-        response = requests.get(url, auth=auth, headers=headers, timeout=30)
+        response = _tfs_request('GET', url, username=username, password=password, pat=pat, timeout=30)
         if response.status_code != 200:
             # Can't fetch, return silently
             return False
@@ -730,7 +739,7 @@ def remove_all_attachments(
         headers["Content-Type"] = "application/json-patch+json"
         
         update_url = f"{url_base}/_apis/wit/workitems/{work_item_id}?api-version=6.0"
-        response = requests.patch(
+        response = _tfs_request('PATCH', 
             update_url,
             auth=auth,
             headers=headers,
@@ -780,7 +789,7 @@ def link_attachment_to_work_item(
     headers = (headers or {}).copy()
     headers["Content-Type"] = "application/json-patch+json"
     
-    response = requests.patch(
+    response = _tfs_request('PATCH', 
         url,
         auth=auth,
         headers=headers,
@@ -865,9 +874,11 @@ def to_tfs_date(value, end_of_day: bool = False) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+@functools.lru_cache(maxsize=200)
 def resolve_tfs_identity(email: str, domain: str = "DGSL", base_url: str = None, pat: str = None, username: str = None, password: str = None) -> str:
     """
     Resolve identity from name or email. Returns the most direct string to avoid TFS rejection.
+    Cached to prevent repeated slow search calls for the same user.
     """
     if not email:
         return None
@@ -885,15 +896,12 @@ def resolve_tfs_identity(email: str, domain: str = "DGSL", base_url: str = None,
         try:
             matches = search_tfs_identities(email, base_url, pat, username, password)
             if matches:
-                if len(matches) > 1:
-                    logging.getLogger(__name__).warning(f"⚠️ Multiple identities found for '{email}': {matches}. Using first match: '{matches[0]}'")
                 # Returns the first (best) match from TFS, e.g. "Suraj Yadav <email>"
                 return matches[0]
         except:
             pass
             
     # 3. Fallback: Return the name as-is. 
-    # TFS is natively good at resolving names; guessing domain prefixes often causes "unknown identity" errors.
     return email
 
 
@@ -1010,7 +1018,7 @@ def get_current_user(base_url: str = None, username: str = None, password: str =
         url = f"{collection_base}/_apis/connectionData?api-version=6.0"
         auth, headers = _get_auth_and_headers(username, password, pat)
 
-        response = requests.get(url, auth=auth, headers=headers, timeout=15)
+        response = _tfs_request('GET', url, username=username, password=password, pat=pat, timeout=15)
         if response.status_code == 200:
             data = response.json()
             authenticated_user = data.get("authenticatedUser", {})
@@ -1048,7 +1056,7 @@ def search_tfs_identities(name_query: str, base_url: str = None, pat: str = None
         # Format: /_apis/identities?searchFilter=general&filterValue={query}&api-version=6.0
         search_url = f"{collection_base}/_apis/identities?searchFilter=general&filterValue={requests.utils.quote(name_query)}&queryMembership=none&api-version=6.0"
 
-        response = requests.get(search_url, auth=auth, headers=headers, timeout=10)
+        response = _tfs_request('GET', search_url, username=username, password=password, pat=pat, timeout=10)
 
         if response.status_code == 200:
             data = response.json()
@@ -1073,7 +1081,7 @@ def search_tfs_identities(name_query: str, base_url: str = None, pat: str = None
             "query": f"SELECT [System.Id], [System.AssignedTo] FROM WorkItems WHERE [System.AssignedTo] CONTAINS '{name_query}' ORDER BY [System.ChangedDate] DESC"
         }
 
-        response = requests.post(wiql_url, auth=auth, headers=headers, json=wiql_body, timeout=10)
+        response = _tfs_request('POST', wiql_url, username=username, password=password, pat=pat, json=wiql_body, timeout=10)
         if response.status_code == 200:
             data = response.json()
             seen = set()
@@ -1082,7 +1090,7 @@ def search_tfs_identities(name_query: str, base_url: str = None, pat: str = None
             # Use collection_base for individual work item fetches to be safe
             for workitem in data.get("workItems", [])[:50]:
                 item_url = f"{collection_base}/_apis/wit/workitems/{workitem['id']}?fields=System.AssignedTo&api-version=6.0"
-                item_res = requests.get(item_url, auth=auth, headers=headers, timeout=5)
+                item_res = _tfs_request('GET', item_url, username=username, password=password, pat=pat, timeout=5)
                 if item_res.status_code == 200:
                     user = item_res.json().get("fields", {}).get("System.AssignedTo")
                     if isinstance(user, dict): user = user.get("displayName")
@@ -1155,7 +1163,7 @@ def find_existing_task(
     headers["Content-Type"] = "application/json"
     
     try:
-        response = requests.post(
+        response = _tfs_request('POST', 
             url,
             headers=headers,
             auth=auth,
@@ -1176,7 +1184,7 @@ def find_existing_task(
                 )
                 retry_headers = (retry_headers or {}).copy()
                 retry_headers["Content-Type"] = "application/json"
-                response = requests.post(
+                response = _tfs_request('POST', 
                     url,
                     headers=retry_headers,
                     auth=retry_auth,
@@ -1187,7 +1195,7 @@ def find_existing_task(
                     break
                 retry_headers = retry_headers.copy()
                 retry_headers.update(_basic_auth_header(user_try, password))
-                response = requests.post(
+                response = _tfs_request('POST', 
                     url,
                     headers=retry_headers,
                     auth=None,
@@ -1299,7 +1307,7 @@ def create_task(
     headers = headers.copy() if headers else {}
     headers["Content-Type"] = "application/json-patch+json"
     
-    response = requests.post(
+    response = _tfs_request('POST', 
         url,
         headers=headers,
         auth=auth,
@@ -1310,7 +1318,7 @@ def create_task(
     # AUTO-RETRY FALLBACK: If 400 error (Invalid tree name), try again WITHOUT AreaPath/IterationPath
     if response.status_code == 400 and "TF401347" in response.text:
         filtered_patch = [op for op in patch_document if op.get("path") not in ["/fields/System.AreaPath", "/fields/System.IterationPath"]]
-        response = requests.post(url, headers=headers, auth=auth, json=filtered_patch, timeout=30)
+        response = _tfs_request('POST', url, headers=headers, auth=auth, json=filtered_patch, timeout=30)
 
     if (
         response.status_code == 401
@@ -1326,7 +1334,7 @@ def create_task(
             )
             retry_headers = (retry_headers or {}).copy()
             retry_headers["Content-Type"] = "application/json-patch+json"
-            response = requests.post(
+            response = _tfs_request('POST', 
                 url,
                 headers=retry_headers,
                 auth=retry_auth,
@@ -1337,7 +1345,7 @@ def create_task(
                 break
             retry_headers = retry_headers.copy()
             retry_headers.update(_basic_auth_header(user_try, password))
-            response = requests.post(
+            response = _tfs_request('POST', 
                 url,
                 headers=retry_headers,
                 auth=None,
@@ -1528,13 +1536,13 @@ def create_work_item(
     headers = (headers or {}).copy()
     headers["Content-Type"] = "application/json-patch+json"
     
-    response = requests.post(url, headers=headers, auth=auth, json=patch_document, timeout=30)
+    response = _tfs_request('POST', url, headers=headers, auth=auth, json=patch_document, timeout=30)
     
     # AUTO-RETRY FALLBACK: If 400 error (Invalid tree name), try again WITHOUT AreaPath/IterationPath
     if response.status_code == 400 and "TF401347" in response.text:
         logging.getLogger("tfs_tool").warning("TFS returned 400 (Invalid tree name). Retrying without AreaPath/IterationPath fallback...")
         filtered_patch = [op for op in patch_document if op.get("path") not in ["/fields/System.AreaPath", "/fields/System.IterationPath"]]
-        response = requests.post(url, headers=headers, auth=auth, json=filtered_patch, timeout=30)
+        response = _tfs_request('POST', url, headers=headers, auth=auth, json=filtered_patch, timeout=30)
 
     if response.status_code == 401 and username and password and not token:
         # (existing retry logic)
@@ -1542,7 +1550,7 @@ def create_work_item(
             retry_auth, retry_headers = _get_auth_and_headers(username=user_try, password=password)
             retry_headers = (retry_headers or {}).copy()
             retry_headers["Content-Type"] = "application/json-patch+json"
-            response = requests.post(url, headers=retry_headers, auth=retry_auth, json=patch_document, timeout=30)
+            response = _tfs_request('POST', url, headers=retry_headers, auth=retry_auth, json=patch_document, timeout=30)
             if response.status_code != 401: break
             
     return response
@@ -1565,7 +1573,7 @@ def fetch_work_item_details(
     
     auth, headers = _get_auth_and_headers(username, password, pat)
     
-    response = requests.get(url, auth=auth, headers=headers, timeout=15)
+    response = _tfs_request('GET', url, username=username, password=password, pat=pat, timeout=15)
     response.raise_for_status()
     
     data = response.json()
@@ -1715,7 +1723,7 @@ def update_task(
     headers["Content-Type"] = "application/json-patch+json"
     
     try:
-        response = requests.patch(
+        response = _tfs_request('PATCH', 
             url,
             headers=headers,
             auth=auth,
@@ -1904,7 +1912,7 @@ def create_bug(
     headers = headers.copy() if headers else {}
     headers["Content-Type"] = "application/json-patch+json"
     
-    response = requests.post(
+    response = _tfs_request('POST', 
         url,
         headers=headers,
         auth=auth,
@@ -1915,7 +1923,7 @@ def create_bug(
     # AUTO-RETRY FALLBACK: If 400 error (Invalid tree name), try again WITHOUT AreaPath/IterationPath
     if response.status_code == 400 and "TF401347" in response.text:
         filtered_patch = [op for op in patch_document if op.get("path") not in ["/fields/System.AreaPath", "/fields/System.IterationPath"]]
-        response = requests.post(url, headers=headers, auth=auth, json=filtered_patch, timeout=30)
+        response = _tfs_request('POST', url, headers=headers, auth=auth, json=filtered_patch, timeout=30)
 
     if (
         response.status_code == 401
@@ -1931,7 +1939,7 @@ def create_bug(
             )
             retry_headers = (retry_headers or {}).copy()
             retry_headers["Content-Type"] = "application/json-patch+json"
-            response = requests.post(
+            response = _tfs_request('POST', 
                 url,
                 headers=retry_headers,
                 auth=retry_auth,
@@ -1942,7 +1950,7 @@ def create_bug(
                 break
             retry_headers = retry_headers.copy()
             retry_headers.update(_basic_auth_header(user_try, password))
-            response = requests.post(
+            response = _tfs_request('POST', 
                 url,
                 headers=retry_headers,
                 auth=None,
@@ -1984,7 +1992,7 @@ def fetch_bug_details(
     
     auth, headers = _get_auth_and_headers(username, password, pat)
     
-    response = requests.get(url, auth=auth, headers=headers, timeout=15)
+    response = _tfs_request('GET', url, username=username, password=password, pat=pat, timeout=15)
     response.raise_for_status()
     
     data = response.json()
@@ -2194,7 +2202,7 @@ def update_bug(
         try:
             # Fetch current work item to get relations
             fetch_url = f"{url_base}/_apis/wit/workitems/{bug_id}?api-version=6.0&$expand=Relations"
-            fetch_response = requests.get(fetch_url, auth=_get_auth_and_headers(username, password, pat)[0], headers=_get_auth_and_headers(username, password, pat)[1] or {}, timeout=15)
+            fetch_response = _tfs_request('GET', fetch_url, auth=_get_auth_and_headers(username, password, pat)[0], headers=_get_auth_and_headers(username, password, pat)[1] or {}, timeout=15)
             if fetch_response.status_code == 200:
                 fetch_data = fetch_response.json()
                 relations = fetch_data.get('relations', [])
@@ -2246,7 +2254,7 @@ def update_bug(
         else:
             logger.info(f"  [{i}] {op}")
     
-    response = requests.patch(
+    response = _tfs_request('PATCH', 
         url,
         headers=headers,
         auth=auth,
@@ -2293,7 +2301,7 @@ def update_bug(
         try:
             logger.info(f"=== VERIFICATION: Fetching work item again to verify update ===")
             verify_url = f"{url_base}/_apis/wit/workitems/{bug_id}?api-version=6.1"
-            verify_response = requests.get(verify_url, auth=auth, headers={"Content-Type": "application/json"}, timeout=30)
+            verify_response = _tfs_request('GET', verify_url, auth=auth, headers={"Content-Type": "application/json"}, timeout=30)
             if verify_response.status_code == 200:
                 verify_data = verify_response.json()
                 verify_fields = verify_data.get('fields', {})
@@ -2323,7 +2331,7 @@ def update_bug(
             )
             retry_headers = (retry_headers or {}).copy()
             retry_headers["Content-Type"] = "application/json-patch+json"
-            response = requests.patch(
+            response = _tfs_request('PATCH', 
                 url,
                 headers=retry_headers,
                 auth=retry_auth,
@@ -2334,7 +2342,7 @@ def update_bug(
                 break
             retry_headers = retry_headers.copy()
             retry_headers.update(_basic_auth_header(user_try, password))
-            response = requests.patch(
+            response = _tfs_request('PATCH', 
                 url,
                 headers=retry_headers,
                 auth=None,
@@ -2414,7 +2422,7 @@ def fetch_test_plans(
         print(f"\n[FETCH_PLANS DEBUG] URL: {url}", flush=True)
         print(f"[FETCH_PLANS DEBUG] Auth type: {'PAT' if pat else ('NTLM' if username else 'None')}", flush=True)
         
-        response = requests.get(url, auth=auth_obj, headers=headers, timeout=60, verify=False)
+        response = _tfs_request('GET', url, username=username, password=password, pat=pat, timeout=60, verify=False)
         logger.info(f"📥 Response status: {response.status_code}")
         print(f"[FETCH_PLANS DEBUG] Response status: {response.status_code}", flush=True)
         
@@ -2449,7 +2457,7 @@ def fetch_test_plans(
             print(f"[FETCH_PLANS DEBUG] Trying WIQL query: {wiql_url}", flush=True)
             logger.info(f"📤 Trying WIQL query: {wiql_url}")
             
-            wiql_response = requests.post(wiql_url, json=wiql_query, auth=auth_obj, headers=headers, timeout=60, verify=False)
+            wiql_response = _tfs_request('POST', wiql_url, json=wiql_query, username=username, password=password, pat=pat, timeout=60, verify=False)
             logger.info(f"📥 WIQL Response status: {wiql_response.status_code}")
             print(f"[FETCH_PLANS DEBUG] WIQL Response status: {wiql_response.status_code}", flush=True)
             
@@ -2465,7 +2473,7 @@ def fetch_test_plans(
                     # Get work item details
                     wi_detail_url = f"{collection_url}/{project}/_apis/wit/workitems/{plan_id}?fields=System.Title,System.Description&api-version=6.0"
                     try:
-                        wi_detail = requests.get(wi_detail_url, auth=auth_obj, headers=headers, timeout=20, verify=False).json()
+                        wi_detail = _tfs_request('GET', wi_detail_url, username=username, password=password, pat=pat, timeout=20, verify=False).json()
                         plans.append({
                             "id": plan_id,
                             "name": wi_detail.get("fields", {}).get("System.Title", f"Plan {plan_id}"),
@@ -2570,7 +2578,7 @@ def fetch_test_suites(
             logger.info(f"📤 Fetching suites from plan {plan_id}: {url}")
             logger.info(f"🔑 Auth type: {'PAT' if pat else ('NTLM' if username else 'None')}")
             
-            response = requests.get(url, auth=auth_obj, headers=headers, timeout=30, verify=False)
+            response = _tfs_request('GET', url, username=username, password=password, pat=pat, timeout=30, verify=False)
             logger.info(f"📥 Response status: {response.status_code}")
             print(f"[FETCH_SUITES DEBUG] REST API status: {response.status_code}", flush=True)
             
@@ -2616,7 +2624,7 @@ def fetch_test_suites(
                 logger.info(f"📤 Executing WIQL query for test suites")
                 print(f"[FETCH_SUITES DEBUG] Trying WIQL query: {url}", flush=True)
                 
-                response = requests.post(
+                response = _tfs_request('POST', 
                     url,
                     json={"query": wiql_query},
                     auth=auth_obj,
@@ -2645,7 +2653,7 @@ def fetch_test_suites(
                             detail_url = f"{collection_url}/{project}/_apis/wit/workitems?ids={ids_str}&fields=System.Id,System.Title,System.Description&api-version=6.0"
                             logger.info(f"📤 Fetching details for batch {batch_start}-{batch_end}...")
                             
-                            detail_response = requests.get(
+                            detail_response = _tfs_request('GET', 
                                 detail_url,
                                 auth=auth_obj,
                                 headers=headers,

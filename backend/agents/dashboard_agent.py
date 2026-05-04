@@ -18,7 +18,8 @@ import requests
 
 from ..tfs_tool import (
     sanitize_params,
-    _get_auth_and_headers
+    _get_auth_and_headers,
+    _tfs_request
 )
 
 logger = logging.getLogger(__name__)
@@ -28,9 +29,9 @@ logger = logging.getLogger(__name__)
 # TFS helpers
 # ---------------------------------------------------------------------------
 
-def _tfs_get(url: str, auth: Any, headers: dict, timeout: int = 30):
-    """Standardized GET for Dashboard Agent with centralized auth support."""
-    resp = requests.get(url, auth=auth, headers=headers, timeout=timeout, verify=False)
+def _tfs_get(url: str, username=None, password=None, pat=None, timeout: int = 30):
+    """Standardized GET for Dashboard Agent with pooled session support."""
+    resp = _tfs_request('GET', url, username=username, password=password, pat=pat, timeout=timeout)
     resp.raise_for_status()
     return resp.json()
 
@@ -42,7 +43,6 @@ def fetch_tfs_saved_queries(project_url: str, pat: str = None, username: str = N
     """
     import concurrent.futures
 
-    auth, headers = _get_auth_and_headers(username=username, password=password, pat=pat)
     results: List[Dict] = []
     pending_folders: List[str] = []    # folder paths that need a separate fetch
 
@@ -72,7 +72,7 @@ def fetch_tfs_saved_queries(project_url: str, pat: str = None, username: str = N
     def _fetch_folder(folder_path: str = "") -> dict:
         path_seg = f"/{folder_path}" if folder_path else ""
         url = f"{project_url}/_apis/wit/queries{path_seg}?$depth=2&$expand=all&api-version={api_version}"
-        return _tfs_get(url, auth, headers, timeout=12)
+        return _tfs_get(url, username=username, password=password, pat=pat, timeout=12)
 
     # --- Round 1: fetch root (gets top-level folders + their depth-2 children) ---
     try:
@@ -104,10 +104,9 @@ def fetch_tfs_saved_queries(project_url: str, pat: str = None, username: str = N
 
 def fetch_work_items_for_query(project_url: str, pat: str = None, username: str = None, password: str = None, query_id: str = "", api_version: str = "5.0") -> List[Dict]:
     """Run a saved WIQL query and return work-item detail rows."""
-    auth, headers = _get_auth_and_headers(username=username, password=password, pat=pat)
     wiql_url = f"{project_url}/_apis/wit/wiql/{query_id}?api-version={api_version}"
     try:
-        data = _tfs_get(wiql_url, auth, headers)
+        data = _tfs_get(wiql_url, username=username, password=password, pat=pat)
     except Exception as exc:
         logger.warning(f"Dashboard: WIQL query {query_id} failed: {exc}")
         return []
@@ -117,23 +116,31 @@ def fetch_work_items_for_query(project_url: str, pat: str = None, username: str 
         return []
 
     all_items: List[Dict] = []
-    batch = 150
+    batch_size = 150
     fields = (
         "System.Id,System.Title,System.WorkItemType,System.State,"
         "System.AssignedTo,System.CreatedDate,System.ChangedDate,"
         "Microsoft.VSTS.Common.Priority"
     )
-    for i in range(0, len(ids), batch):
-        chunk = ids[i : i + batch]
-        url = (
-            f"{project_url}/_apis/wit/workitems"
-            f"?ids={','.join(chunk)}&fields={fields}&api-version={api_version}"
-        )
-        try:
-            resp = _tfs_get(url, auth, headers)
-            all_items.extend(resp.get("value", []))
-        except Exception as exc:
-            logger.warning(f"Dashboard: batch fetch failed: {exc}")
+    
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = []
+        for i in range(0, len(ids), batch_size):
+            chunk = ids[i : i + batch_size]
+            url = (
+                f"{project_url}/_apis/wit/workitems"
+                f"?ids={','.join(chunk)}&fields={fields}&api-version={api_version}"
+            )
+            futures.append(executor.submit(_tfs_get, url, username=username, password=password, pat=pat))
+        
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                resp = future.result()
+                all_items.extend(resp.get("value", []))
+            except Exception as exc:
+                logger.warning(f"Dashboard: batch fetch failed: {exc}")
+                
     return all_items
 
 
