@@ -969,13 +969,13 @@ def extract_base_url_and_project(url_value: str):
             return base_url, project
         elif sys_idx == len(parts) and len(parts) >= 2:
             # No system segment found — treat last part as project, rest as base
-                project = parts[-1]
-                base_url = f"{parsed.scheme}://{parsed.netloc}/" + "/".join(parts[:-1])
-                return base_url, project
+            project = parts[-1]
+            base_url = f"{parsed.scheme}://{parsed.netloc}/" + "/".join(parts[:-1])
+            return base_url, project
 
-            except Exception:
-            pass
-            return None, None
+    except Exception:
+        pass
+    return None, None
 
 
 
