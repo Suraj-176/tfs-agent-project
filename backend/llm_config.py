@@ -143,11 +143,21 @@ def get_configured_llm(llm_config: dict = None):
     if provider == "azure":
         # Ensure we have a valid deployment name
         deployment = llm_config.get('deployment_name') or llm_config.get('model') or 'gpt-4'
+        endpoint = (llm_config.get('endpoint') or "").strip()
+        api_key = (llm_config.get('api_key') or "").strip()
+        api_version = (llm_config.get('api_version') or "").strip()
+        
+        # Set environment variables as a robust fallback for libraries that check them
+        os.environ["AZURE_OPENAI_ENDPOINT"] = endpoint
+        os.environ["AZURE_ENDPOINT"] = endpoint
+        os.environ["AZURE_OPENAI_API_KEY"] = api_key
+        os.environ["AZURE_OPENAI_API_VERSION"] = api_version
+        
         return LLM(
             model=f"azure/{deployment}",
-            api_key=llm_config['api_key'],
-            base_url=llm_config['endpoint'],
-            api_version=llm_config['api_version'],
+            api_key=api_key,
+            base_url=endpoint,
+            api_version=api_version,
             temperature=0.0,
         )
     elif provider == "openai":
