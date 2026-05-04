@@ -3636,43 +3636,86 @@ function renderDashboardResult(result) {
   window._dashDownloadChart = (cid) => {
     const c = document.getElementById(cid);
     if (!c) return;
-    const a = document.createElement('a');
-    a.download = (cid.replace(/dash_/,'').replace(/_\d+$/,'') || 'chart') + '.png';
-    a.href = c.toDataURL('image/png');
-    a.click();
+    
+    try {
+      // Create temporary canvas to add white background (prevents black background on transparency)
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = c.width;
+      tempCanvas.height = c.height;
+      const ctx = tempCanvas.getContext('2d');
+      
+      // Fill white background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+      
+      // Draw original chart
+      ctx.drawImage(c, 0, 0);
+      
+      const a = document.createElement('a');
+      a.download = (cid.replace(/dash_/,'').replace(/_\d+$/,'') || 'chart') + '.png';
+      a.href = tempCanvas.toDataURL('image/png');
+      a.click();
+    } catch (err) {
+      console.error('Download failed:', err);
+      // Fallback to simple download
+      const a = document.createElement('a');
+      a.download = 'chart.png';
+      a.href = c.toDataURL('image/png');
+      a.click();
+    }
   };
+
   window._dashCopyChart = async (cid) => {
     const c = document.getElementById(cid);
     if (!c) return;
     
     // Find the parent panel (the div with panelStyle)
     const panel = c.closest('div[style*="border-radius:14px"]');
-    if (!panel) {
-        // Fallback to simple canvas copy if panel not found
-        c.toBlob(blob => {
-            try { 
-                navigator.clipboard.write([new ClipboardItem({'image/png': blob})]); 
-                showToast('✅ Chart image copied!');
-            } catch(e) { showToast('❌ Copy failed'); }
-        });
-        return;
-    }
-
+    
     try {
+      if (!panel) throw new Error('Panel not found');
+
       // Hide buttons during capture
       const btns = panel.querySelectorAll('.dash-chart-btn');
       btns.forEach(b => b.style.visibility = 'hidden');
 
       const canvas = await html2canvas(panel, {
-        scale: 1,
+        scale: 2, // Better quality
         useCORS: true,
-        backgroundColor: '#fbfdff', // Match panelStyle background
+        backgroundColor: '#ffffff', // Force white background
         logging: false
       });
 
-      // Add a professional subtle border to the final canvas
-      const ctx = canvas.getContext('2d');
-      ctx.strokeStyle = '#e2e8f0';
+      // Restore buttons
+      btns.forEach(b => b.style.visibility = 'visible');
+
+      canvas.toBlob(async (blob) => {
+        try {
+          if (!window.ClipboardItem) {
+            throw new Error('Clipboard API not supported');
+          }
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          showToast('✅ Chart copied to clipboard!');
+        } catch (e) {
+          console.error('Clipboard write failed:', e);
+          showToast('❌ Copy failed. Try right-click -> Copy Image', 'danger');
+        }
+      });
+    } catch (err) {
+      console.error('html2canvas capture failed:', err);
+      // Final fallback: copy just the canvas
+      c.toBlob(async (blob) => {
+        try {
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          showToast('✅ Chart (canvas only) copied!');
+        } catch (e) {
+          showToast('❌ Copy failed', 'danger');
+        }
+      });
+    }
+  };
       ctx.lineWidth = 2;
       ctx.strokeRect(0, 0, canvas.width, canvas.height);
 
@@ -6819,7 +6862,7 @@ function newExecution() {
     if (nameEl) nameEl.textContent = '📎 Click to upload .xlsx';
   });
   const dashPrompt = document.getElementById('dash-llm-prompt');
-  if (dashPrompt) dashPrompt.value = '';
+  // Preserve prompt instead of clearing it
 
   // Clear Dashboard Content UI
   const dashContent = document.getElementById('dashboard-content');
