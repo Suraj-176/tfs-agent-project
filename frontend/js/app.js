@@ -4512,7 +4512,7 @@ function addChatMessage(role, text) {
           tfs_config: tfs,
           llm_config: llmCfg || null
         })
-      }, 60000);
+      }, 90000); // 90s for chat
 
       const data = await response.json();
       typing.remove();

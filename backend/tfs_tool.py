@@ -15,20 +15,25 @@ from requests_ntlm import HttpNtlmAuth
 
 import functools
 
+import threading
+
 # Global session pool for NTLM to prevent slow repeated handshakes
 _TFS_SESSIONS = {}
+_SESSION_LOCK = threading.Lock()
 
 def _get_tfs_session(username, password, pat=None):
-    """Get or create a pooled requests session for TFS."""
+    """Get or create a pooled requests session for TFS. Thread-safe."""
     key = f"{(username or '').strip()}:{(password or '').strip()}:{(pat or '').strip()}"
-    if key not in _TFS_SESSIONS:
-        session = requests.Session()
-        if pat:
-            session.headers.update({"Authorization": f"Basic {base64.b64encode(f':{pat}'.encode()).decode()}"})
-        elif username and password:
-            session.auth = HttpNtlmAuth(username, password)
-        _TFS_SESSIONS[key] = session
-    return _TFS_SESSIONS[key]
+    
+    with _SESSION_LOCK:
+        if key not in _TFS_SESSIONS:
+            session = requests.Session()
+            if pat:
+                session.headers.update({"Authorization": f"Basic {base64.b64encode(f':{pat}'.encode()).decode()}"})
+            elif username and password:
+                session.auth = HttpNtlmAuth(username, password)
+            _TFS_SESSIONS[key] = session
+        return _TFS_SESSIONS[key]
 
 def _tfs_request(method, url, username=None, password=None, pat=None, **kwargs):
     """Internal helper to execute a TFS request using pooled sessions."""

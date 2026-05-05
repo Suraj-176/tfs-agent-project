@@ -110,7 +110,9 @@ def execute_testcase_generation(
         # SPEED OPTIMIZATION: Use direct LLM call instead of Crew
         # CrewAI adds overhead for task/agent lifecycle. Direct call is much faster for JSON generation.
         llm = get_configured_llm(llm_config)
-        prompt = f"""
+        
+        # --- VISION SUPPORT: Prepare content list with text and optional images ---
+        text_prompt = f"""
 Generate comprehensive QA test cases ({scope_block}) for the following:
 {story}
 {sop_block}
@@ -135,8 +137,27 @@ Strict Rules:
 - No markdown formatting like ```json.
 - No conversational text.
 """
+        message_content = [{"type": "text", "text": text_prompt}]
         
-        raw_result = str(llm.call([{"role": "user", "content": prompt}])).strip()
+        # Add screenshots to the message if provided (Vision support)
+        screenshots = ui_screenshot_data_list or []
+        if ui_screenshot_data: screenshots.append(ui_screenshot_data)
+        
+        if screenshots:
+            import logging
+            logging.getLogger(__name__).info(f"📸 Sending {len(screenshots)} screenshots for UI test case analysis")
+            for img_data in screenshots:
+                if img_data:
+                    # Ensure properly formatted data URL
+                    if not str(img_data).startswith("data:"):
+                        img_data = f"data:image/png;base64,{img_data}"
+                    
+                    message_content.append({
+                        "type": "image_url",
+                        "image_url": {"url": img_data}
+                    })
+        
+        raw_result = str(llm.call([{"role": "user", "content": message_content}])).strip()
 
         # Clean JSON if Agent wrapped it in blocks
         if "```" in raw_result:
