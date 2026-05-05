@@ -248,9 +248,9 @@ def execute_bug_creation(
     if is_update and not work_item_id:
         return {"success": False, "message": "Work Item ID required for update"}
     
-    # 1. AI Analysis (if form data is sparse)
+    # 1. AI Analysis (if form data is sparse or screenshots are provided for analysis)
     llm_fields = {}
-    if llm_config and not (bug_title and (bug_description or reproduction_steps)):
+    if llm_config and (not (bug_title and (bug_description or reproduction_steps)) or screenshots):
         try:
             from ..prompts_manager import PromptsManager
             if wi_type == "Feature":
@@ -262,9 +262,27 @@ def execute_bug_creation(
 
             # SPEED OPTIMIZATION: Use direct LLM call instead of Crew
             llm = get_configured_llm(llm_config)
-            task_desc = f"{base_prompt}\n\nAnalyze and format this input:\n{bug_description or reproduction_steps or bug_title}"
             
-            analysis = llm.call([{"role": "user", "content": task_desc}])
+            # --- VISION SUPPORT: Prepare content list with text and optional images ---
+            text_content = f"{base_prompt}\n\nAnalyze and format this input:\n{bug_description or reproduction_steps or bug_title or 'Analyze provided screenshots.'}"
+            message_content = [{"type": "text", "text": text_content}]
+            
+            if screenshots:
+                logger.info(f"📸 Sending {len(screenshots)} screenshots to AI for vision analysis")
+                for s in screenshots:
+                    if s.get("data"):
+                        # Ensure it's a properly formatted data URL for vision models
+                        img_data = s.get("data")
+                        if not img_data.startswith("data:"):
+                            img_data = f"data:image/png;base64,{img_data}"
+                        
+                        message_content.append({
+                            "type": "image_url",
+                            "image_url": {"url": img_data}
+                        })
+            
+            # Direct LLM call (passing structured content list for vision support)
+            analysis = llm.call([{"role": "user", "content": message_content}])
             llm_fields = parse_llm_analysis_to_bug_fields(str(analysis), wi_type)
         except Exception as e:
             logger.error(f"⚠️ AI analysis failed during bug creation: {e}")
@@ -389,8 +407,10 @@ def execute_bug_creation(
         if resp.status_code in [200, 201]:
             new_id = resp.json().get('id')
             if attachment_urls:
-                if is_update: remove_all_attachments(new_id, tfs_config['base_url'], tfs_config.get('pat_token'), tfs_config.get('username'), tfs_config.get('password'))
-                for a in attachment_urls: link_attachment_to_work_item(new_id, a["url"], "Added by Agent", tfs_config['base_url'], tfs_config.get('pat_token'), tfs_config.get('username'), tfs_config.get('password'))
+                # COMMENTED OUT AS REQUESTED: Only show screenshots in description, not in Attachments tab
+                # if is_update: remove_all_attachments(new_id, tfs_config['base_url'], tfs_config.get('pat_token'), tfs_config.get('username'), tfs_config.get('password'))
+                # for a in attachment_urls: link_attachment_to_work_item(new_id, a["url"], "Added by Agent", tfs_config['base_url'], tfs_config.get('pat_token'), tfs_config.get('username'), tfs_config.get('password'))
+                pass
             return {"success": True, "bug_id": new_id, "message": f"{wi_type} processed successfully"}
         return {"success": False, "message": f"TFS Error: {resp.text}"}
     except Exception as e:
